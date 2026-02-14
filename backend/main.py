@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from database import get_connection, init_db
-from models import CATEGORIES, Expense, ExpenseCreate
+from models import ALL_SUBCATEGORIES, CATEGORIES, SUB_TO_CAT, Expense, ExpenseCreate
 
 app = FastAPI(title="Money & Expense Tracker")
 
@@ -29,19 +29,20 @@ def list_expenses() -> list[Expense]:
     return [Expense(**dict(r)) for r in rows]
 
 
-@app.get("/api/categories", response_model=list[str])
-def list_categories() -> list[str]:
+@app.get("/api/categories")
+def list_categories() -> dict[str, dict]:
     return CATEGORIES
 
 
 @app.post("/api/expenses", response_model=Expense, status_code=201)
 def create_expense(data: ExpenseCreate) -> Expense:
-    if data.category not in CATEGORIES:
-        raise HTTPException(status_code=400, detail="Invalid category")
+    if data.subcategory not in ALL_SUBCATEGORIES:
+        raise HTTPException(status_code=400, detail="Invalid subcategory")
+    category = SUB_TO_CAT[data.subcategory]
     conn = get_connection()
     cursor = conn.execute(
-        "INSERT INTO expenses (user_id, title, amount, category, date) VALUES (1, ?, ?, ?, ?)",
-        (data.title, data.amount, data.category, data.date),
+        "INSERT INTO expenses (user_id, title, amount, category, subcategory, date) VALUES (1, ?, ?, ?, ?, ?)",
+        (data.title, data.amount, category, data.subcategory, data.date),
     )
     conn.commit()
     row = conn.execute(

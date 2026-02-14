@@ -53,22 +53,15 @@ body {
   transition: border-color 0.2s;
 }
 
-.expense-form input:focus,
-.expense-form select:focus {
+.expense-form input:focus {
   outline: none;
   border-color: #4f46e5;
   box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
 }
 
-.expense-form select {
-  flex: 1;
-  min-width: 140px;
-  padding: 0.625rem 0.875rem;
-  border: 1.5px solid #e0e0e0;
-  border-radius: 8px;
-  font-size: 0.95rem;
-  background: white;
-  transition: border-color 0.2s;
+/* Category Picker (react-select) */
+.expense-form > div:has([class*="control"]) {
+  flex-basis: 100%;
 }
 
 .expense-form button {

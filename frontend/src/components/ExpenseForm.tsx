@@ -1,8 +1,9 @@
 import { useState } from "react";
-import type { ExpenseCreate } from "../api";
+import type { Categories, ExpenseCreate } from "../api";
+import CategoryPicker from "./CategoryPicker";
 
 interface Props {
-  categories: string[];
+  categories: Categories;
   onSubmit: (data: ExpenseCreate) => void;
 }
 
@@ -13,16 +14,22 @@ function todayISO(): string {
 export default function ExpenseForm({ categories, onSubmit }: Props) {
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
-  const [category, setCategory] = useState(categories[0] ?? "Other");
+  const [subcategory, setSubcategory] = useState("");
   const [date, setDate] = useState(todayISO);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const parsed = parseFloat(amount);
     if (!title.trim() || isNaN(parsed) || parsed <= 0) return;
-    onSubmit({ title: title.trim(), amount: parsed, category, date });
+    onSubmit({
+      title: title.trim(),
+      amount: parsed,
+      subcategory: subcategory || "Uncategorized",
+      date,
+    });
     setTitle("");
     setAmount("");
+    setSubcategory("");
     setDate(todayISO());
   }
 
@@ -43,13 +50,11 @@ export default function ExpenseForm({ categories, onSubmit }: Props) {
         onChange={(e) => setAmount(e.target.value)}
         required
       />
-      <select value={category} onChange={(e) => setCategory(e.target.value)}>
-        {categories.map((cat) => (
-          <option key={cat} value={cat}>
-            {cat}
-          </option>
-        ))}
-      </select>
+      <CategoryPicker
+        categories={categories}
+        value={subcategory}
+        onChange={setSubcategory}
+      />
       <input
         type="date"
         value={date}

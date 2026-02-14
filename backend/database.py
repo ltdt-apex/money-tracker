@@ -20,13 +20,16 @@ def init_db() -> None:
             title TEXT NOT NULL,
             amount REAL NOT NULL,
             category TEXT NOT NULL DEFAULT 'Other',
+            subcategory TEXT NOT NULL DEFAULT '❓ Uncategorized',
             date TEXT NOT NULL,
             created_at TEXT NOT NULL DEFAULT (datetime('now'))
         )
     """)
-    # migrate: add category column if missing (existing databases)
+    # migrate: add columns if missing (existing databases)
     cols = [r[1] for r in conn.execute("PRAGMA table_info(expenses)").fetchall()]
     if "category" not in cols:
         conn.execute("ALTER TABLE expenses ADD COLUMN category TEXT NOT NULL DEFAULT 'Other'")
+    if "subcategory" not in cols:
+        conn.execute("ALTER TABLE expenses ADD COLUMN subcategory TEXT NOT NULL DEFAULT '❓ Uncategorized'")
     conn.commit()
     conn.close()

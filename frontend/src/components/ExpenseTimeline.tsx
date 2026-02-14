@@ -2,6 +2,7 @@ import type { Expense } from "../api";
 
 interface Props {
   expenses: Expense[];
+  emojiMap: Record<string, string>;
   onDelete: (id: number) => void;
 }
 
@@ -21,7 +22,7 @@ function formatAmount(amount: number): string {
   }).format(amount);
 }
 
-export default function ExpenseTimeline({ expenses, onDelete }: Props) {
+export default function ExpenseTimeline({ expenses, emojiMap, onDelete }: Props) {
   const grouped = new Map<string, Expense[]>();
   for (const exp of expenses) {
     const list = grouped.get(exp.date) ?? [];
@@ -43,7 +44,9 @@ export default function ExpenseTimeline({ expenses, onDelete }: Props) {
               <div key={exp.id} className="timeline-row">
                 <div className="expense-details">
                   <span className="expense-title">{exp.title}</span>
-                  <span className="expense-category">{exp.category}</span>
+                  <span className="expense-category">
+                    {emojiMap[exp.subcategory] ?? ""} {exp.subcategory}
+                  </span>
                 </div>
                 <span className="expense-amount">{formatAmount(exp.amount)}</span>
                 <button

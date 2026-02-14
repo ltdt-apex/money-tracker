@@ -1,12 +1,14 @@
-import { useEffect, useState } from "react";
-import { fetchExpenses, fetchCategories, createExpense, deleteExpense } from "./api";
-import type { Expense, ExpenseCreate } from "./api";
+import { useEffect, useMemo, useState } from "react";
+import { fetchExpenses, fetchCategories, createExpense, deleteExpense, buildEmojiMap } from "./api";
+import type { Categories, Expense, ExpenseCreate } from "./api";
 import ExpenseForm from "./components/ExpenseForm";
 import ExpenseTimeline from "./components/ExpenseTimeline";
 
 export default function App() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [categories, setCategories] = useState<string[]>([]);
+  const [categories, setCategories] = useState<Categories>({});
+
+  const emojiMap = useMemo(() => buildEmojiMap(categories), [categories]);
 
   useEffect(() => {
     fetchExpenses().then(setExpenses).catch(console.error);
@@ -32,7 +34,7 @@ export default function App() {
       </header>
       <main className="container">
         <ExpenseForm categories={categories} onSubmit={handleAdd} />
-        <ExpenseTimeline expenses={expenses} onDelete={handleDelete} />
+        <ExpenseTimeline expenses={expenses} emojiMap={emojiMap} onDelete={handleDelete} />
       </main>
     </div>
   );
