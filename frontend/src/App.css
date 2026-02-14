@@ -1,0 +1,184 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: #f5f5f7;
+  color: #1a1a2e;
+  line-height: 1.6;
+}
+
+.app-header {
+  background: #4f46e5;
+  color: white;
+  padding: 1.25rem 2rem;
+  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.3);
+}
+
+.app-header h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.container {
+  max-width: 640px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+}
+
+/* Form */
+.expense-form {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+}
+
+.expense-form input {
+  flex: 1;
+  min-width: 140px;
+  padding: 0.625rem 0.875rem;
+  border: 1.5px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  transition: border-color 0.2s;
+}
+
+.expense-form input:focus,
+.expense-form select:focus {
+  outline: none;
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.expense-form select {
+  flex: 1;
+  min-width: 140px;
+  padding: 0.625rem 0.875rem;
+  border: 1.5px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  background: white;
+  transition: border-color 0.2s;
+}
+
+.expense-form button {
+  background: #4f46e5;
+  color: white;
+  border: none;
+  padding: 0.625rem 1.5rem;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.expense-form button:hover {
+  background: #4338ca;
+}
+
+/* Timeline */
+.timeline {
+  display: flex;
+  flex-direction: column;
+  border-radius: 12px;
+  overflow: hidden;
+  background: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.timeline-group + .timeline-group {
+  border-top: 1px solid #e5e7eb;
+}
+
+.timeline-date-bar {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6b7280;
+  letter-spacing: 0.04em;
+  padding: 0.5rem 1.25rem;
+  background: #f3f4f6;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.timeline-table {
+  display: flex;
+  flex-direction: column;
+}
+
+.timeline-row {
+  display: flex;
+  align-items: center;
+  padding: 0.875rem 1.25rem;
+  transition: background 0.15s;
+}
+
+.timeline-row:hover {
+  background: #f9fafb;
+}
+
+.timeline-row + .timeline-row {
+  border-top: 1px solid #f0f0f0;
+}
+
+.expense-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.expense-title {
+  font-weight: 500;
+  font-size: 0.95rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.expense-category {
+  font-size: 0.7rem;
+  color: #9ca3af;
+}
+
+.expense-amount {
+  font-weight: 700;
+  color: #1a1a2e;
+  font-size: 0.95rem;
+  white-space: nowrap;
+  margin-left: 1rem;
+}
+
+.delete-btn {
+  background: none;
+  border: none;
+  color: #d1d5db;
+  font-size: 1.25rem;
+  cursor: pointer;
+  padding: 0 0.25rem;
+  margin-left: 0.75rem;
+  line-height: 1;
+  transition: color 0.2s;
+}
+
+.delete-btn:hover {
+  color: #ef4444;
+}
+
+.empty-state {
+  text-align: center;
+  color: #9ca3af;
+  padding: 3rem 1rem;
+  font-size: 1.05rem;
+}
