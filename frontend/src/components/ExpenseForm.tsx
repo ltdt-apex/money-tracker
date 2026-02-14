@@ -35,33 +35,51 @@ export default function ExpenseForm({ categories, onSubmit }: Props) {
 
   return (
     <form className="expense-form" onSubmit={handleSubmit}>
-      <input
-        type="text"
-        placeholder="Expense title"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        required
-      />
-      <input
-        type="text"
-        inputMode="decimal"
-        placeholder="Amount"
-        value={amount}
-        onChange={(e) => setAmount(e.target.value)}
-        required
-      />
-      <CategoryPicker
-        categories={categories}
-        value={subcategory}
-        onChange={setSubcategory}
-      />
-      <input
-        type="date"
-        value={date}
-        onChange={(e) => setDate(e.target.value)}
-        required
-      />
-      <button type="submit">New Expense</button>
+      <div className="form-row">
+        <div className="form-field form-field-grow">
+          <label className="form-label">Description</label>
+          <input
+            type="text"
+            placeholder="What did you spend on?"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            required
+          />
+        </div>
+        <div className="form-field form-field-amount">
+          <label className="form-label">Amount</label>
+          <input
+            type="text"
+            inputMode="decimal"
+            placeholder="0.00"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            required
+          />
+        </div>
+      </div>
+      <div className="form-row">
+        <div className="form-field">
+          <label className="form-label">Date</label>
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            required
+          />
+        </div>
+        <div className="form-field form-field-grow">
+          <label className="form-label">Category</label>
+          <CategoryPicker
+            categories={categories}
+            value={subcategory}
+            onChange={setSubcategory}
+          />
+        </div>
+      </div>
+      <div className="form-actions">
+        <button type="submit">Add expense</button>
+      </div>
     </form>
   );
 }
