@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchExpenses, fetchCategories, createExpense, deleteExpense, buildEmojiMap } from "./api";
 import type { Categories, Expense, ExpenseCreate } from "./api";
+import { Receipt, ChartPie } from "lucide-react";
 import ExpenseForm from "./components/ExpenseForm";
 import ExpenseTimeline from "./components/ExpenseTimeline";
 
@@ -16,6 +17,7 @@ export default function App() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [categories, setCategories] = useState<Categories>({});
   const [showForm, setShowForm] = useState(false);
+  const [activeTab, setActiveTab] = useState<"expenses" | "stats">("expenses");
 
   const emojiMap = useMemo(() => buildEmojiMap(categories), [categories]);
 
@@ -56,6 +58,21 @@ export default function App() {
           </button>
         </div>
 
+        <nav className="tab-bar">
+          <button
+            className={`tab${activeTab === "expenses" ? " tab-active" : ""}`}
+            onClick={() => setActiveTab("expenses")}
+          >
+            <Receipt size={16} /> Expenses
+          </button>
+          <button
+            className={`tab${activeTab === "stats" ? " tab-active" : ""}`}
+            onClick={() => setActiveTab("stats")}
+          >
+            <ChartPie size={16} /> Stats
+          </button>
+        </nav>
+
         {showForm && (
           <div className="modal-overlay" onClick={() => setShowForm(false)}>
             <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -70,7 +87,15 @@ export default function App() {
           </div>
         )}
 
-        <ExpenseTimeline expenses={expenses} emojiMap={emojiMap} onDelete={handleDelete} />
+        {activeTab === "expenses" && (
+          <ExpenseTimeline expenses={expenses} emojiMap={emojiMap} onDelete={handleDelete} />
+        )}
+
+        {activeTab === "stats" && (
+          <div className="stats-placeholder">
+            <p>Stats coming soon</p>
+          </div>
+        )}
       </main>
     </div>
   );
