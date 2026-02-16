@@ -35,6 +35,7 @@ export default function SpendCalendar({ expenses, categories, onDateClick }: Pro
   const dataByDate = useMemo(() => {
     const map = new Map<string, DayData>();
     for (const e of expenses) {
+      if (e.category === "Income") continue;
       let day = map.get(e.date);
       if (!day) {
         day = { total: 0, byCategory: new Map() };
