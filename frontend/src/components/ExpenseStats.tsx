@@ -11,11 +11,11 @@ const COLORS = [
 type DateRange = "all" | "month" | "3m" | "6m" | "12m";
 
 const RANGE_LABELS: Record<DateRange, string> = {
-  all: "All Time",
   month: "This Month",
   "3m": "Last 3 Months",
   "6m": "Last 6 Months",
   "12m": "Last 12 Months",
+  all: "All Time",
 };
 
 interface Props {
@@ -91,7 +91,7 @@ function PieTooltip({ active, payload }: any) {
 }
 
 export default function ExpenseStats({ expenses, categories, onDateClick }: Props) {
-  const [range, setRange] = useState<DateRange>("all");
+  const [range, setRange] = useState<DateRange>("month");
 
   const filtered = useMemo(() => {
     const cutoff = getRangeCutoff(range);
@@ -99,38 +99,50 @@ export default function ExpenseStats({ expenses, categories, onDateClick }: Prop
     return expenses.filter((e) => e.date >= cutoff);
   }, [expenses, range]);
 
-  const { breakdown, totalExpenses, totalIncome } = useMemo(() => {
-    const map = new Map<string, { amount: number; count: number }>();
+  const { breakdown, totalExpenses, incomeBySubcat, totalIncome } = useMemo(() => {
+    const expMap = new Map<string, { amount: number; count: number }>();
+    const incMap = new Map<string, { amount: number; count: number }>();
     let totalExpenses = 0;
     let totalIncome = 0;
 
     for (const e of filtered) {
       if (e.category === "Income") {
         totalIncome += e.amount;
-      } else {
-        totalExpenses += e.amount;
+        const existing = incMap.get(e.subcategory);
+        if (existing) {
+          existing.amount += e.amount;
+          existing.count++;
+        } else {
+          incMap.set(e.subcategory, { amount: e.amount, count: 1 });
+        }
+        continue;
       }
-      const existing = map.get(e.category);
+      totalExpenses += e.amount;
+      const existing = expMap.get(e.category);
       if (existing) {
         existing.amount += e.amount;
         existing.count++;
       } else {
-        map.set(e.category, { amount: e.amount, count: 1 });
+        expMap.set(e.category, { amount: e.amount, count: 1 });
       }
     }
 
-    const total = totalExpenses + totalIncome;
-    const breakdown: CategoryBreakdown[] = Array.from(map.entries())
+    const breakdown: CategoryBreakdown[] = Array.from(expMap.entries())
       .map(([name, { amount, count }]) => ({
         name,
         emoji: categories[name]?.emoji ?? "",
         amount,
         count,
-        percentage: total > 0 ? (amount / total) * 100 : 0,
+        percentage: totalExpenses > 0 ? (amount / totalExpenses) * 100 : 0,
       }))
       .sort((a, b) => b.amount - a.amount);
 
-    return { breakdown, totalExpenses, totalIncome };
+    const incomeSubs = categories["Income"]?.subcategories ?? {};
+    const incomeBySubcat = Array.from(incMap.entries())
+      .map(([name, { amount, count }]) => ({ name, emoji: incomeSubs[name] ?? "", amount, count }))
+      .sort((a, b) => b.amount - a.amount);
+
+    return { breakdown, totalExpenses, incomeBySubcat, totalIncome };
   }, [filtered, categories]);
 
   const tagBreakdown = useMemo(() => {
@@ -173,23 +185,62 @@ export default function ExpenseStats({ expenses, categories, onDateClick }: Prop
         ))}
       </div>
 
-      <div className="stats-totals-row">
-        {totalIncome > 0 && (
-          <div className="stats-total">
-            <span className="stats-total-label">Total Income</span>
-            <span className="stats-total-amount stats-total-income">{formatCurrency(totalIncome)}</span>
+      <div className="stats-summary-row">
+        <div className="stats-summary-col">
+          <h3 className="stats-summary-heading stats-summary-heading-income">Income</h3>
+          {incomeBySubcat.length > 0 ? (
+            <div className="stats-summary-list">
+              {incomeBySubcat.map((item) => (
+                <div key={item.name} className="stats-summary-item">
+                  <span className="stats-summary-name">{item.emoji} {item.name}</span>
+                  <span className="stats-summary-amt stats-summary-amt-income">{formatCurrency(item.amount)}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="stats-summary-empty">No income</p>
+          )}
+          <div className="stats-summary-total">
+            <span className="stats-summary-total-label">Total</span>
+            <span className="stats-summary-total-amt stats-summary-amt-income">{formatCurrency(totalIncome)}</span>
           </div>
-        )}
-        <div className="stats-total">
-          <span className="stats-total-label">Total Expenses</span>
-          <span className="stats-total-amount">{formatCurrency(totalExpenses)}</span>
         </div>
+        <div className="stats-summary-col">
+          <h3 className="stats-summary-heading stats-summary-heading-expense">Expenses</h3>
+          {breakdown.length > 0 ? (
+            <div className="stats-summary-list">
+              {breakdown.map((cat) => (
+                <div key={cat.name} className="stats-summary-item">
+                  <span className="stats-summary-name">{cat.emoji} {cat.name}</span>
+                  <span className="stats-summary-amt stats-summary-amt-expense">{formatCurrency(cat.amount)}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="stats-summary-empty">No expenses</p>
+          )}
+          <div className="stats-summary-total">
+            <span className="stats-summary-total-label">Total</span>
+            <span className="stats-summary-total-amt stats-summary-amt-expense">{formatCurrency(totalExpenses)}</span>
+          </div>
+        </div>
+      </div>
+      <div className="stats-summary-balance">
+        <span className="stats-summary-total-label">Balance</span>
+        <span className={`stats-summary-total-amt ${totalIncome - totalExpenses >= 0 ? "balance-positive" : "balance-negative"}`}>
+          {formatCurrency(totalIncome - totalExpenses)}
+        </span>
       </div>
 
       {filtered.length === 0 ? (
         <p className="empty-state">No expenses in this period.</p>
       ) : (
         <>
+          <div className="stats-section-divider" />
+          <div className="stats-total">
+            <span className="stats-total-label">Total Expenses</span>
+            <span className="stats-total-amount stats-summary-amt-expense">{formatCurrency(totalExpenses)}</span>
+          </div>
           <div className="stats-chart-row">
             <div className="stats-chart">
               <ResponsiveContainer width="100%" height={200}>
