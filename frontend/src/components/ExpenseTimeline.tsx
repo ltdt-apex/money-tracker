@@ -47,6 +47,15 @@ export default function ExpenseTimeline({ expenses, emojiMap, onEdit }: Props) {
                   <span className="expense-title">{exp.title}</span>
                   <span className="expense-category">
                     {emojiMap[exp.subcategory] ?? ""} {exp.subcategory}
+                    {exp.tags.length > 0 && (
+                      <span className="expense-tags">
+                        {exp.tags.map((t) => (
+                          <span key={t.id} className="tag-pill tag-pill-sm" style={{ background: t.color }}>
+                            {t.name}
+                          </span>
+                        ))}
+                      </span>
+                    )}
                   </span>
                 </div>
                 <span className="expense-amount">{formatAmount(exp.amount)}</span>

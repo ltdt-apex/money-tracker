@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { fetchExpenses, fetchCategories, createExpense, updateExpense, deleteExpense, buildEmojiMap } from "./api";
-import type { Categories, Expense, ExpenseCreate } from "./api";
+import { fetchExpenses, fetchCategories, fetchTags, createExpense, updateExpense, deleteExpense, createTag, buildEmojiMap } from "./api";
+import type { Categories, Expense, ExpenseCreate, Tag, TagCreate } from "./api";
 import { Receipt, ChartPie } from "lucide-react";
 import ExpenseForm from "./components/ExpenseForm";
 import ExpenseTimeline from "./components/ExpenseTimeline";
@@ -17,6 +17,7 @@ function formatTotal(expenses: Expense[]): string {
 export default function App() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [categories, setCategories] = useState<Categories>({});
+  const [tags, setTags] = useState<Tag[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Expense | null>(null);
   const [activeTab, setActiveTab] = useState<"expenses" | "stats">("expenses");
@@ -26,6 +27,7 @@ export default function App() {
   useEffect(() => {
     fetchExpenses().then(setExpenses).catch(console.error);
     fetchCategories().then(setCategories).catch(console.error);
+    fetchTags().then(setTags).catch(console.error);
   }, []);
 
   function openNew() {
@@ -57,6 +59,12 @@ export default function App() {
       );
     }
     closeForm();
+  }
+
+  async function handleCreateTag(data: TagCreate): Promise<Tag> {
+    const tag = await createTag(data);
+    setTags((prev) => [...prev, tag].sort((a, b) => a.name.localeCompare(b.name)));
+    return tag;
   }
 
   async function handleDelete(id: number) {
@@ -125,9 +133,11 @@ export default function App() {
               <ExpenseForm
                 key={editing?.id ?? "new"}
                 categories={categories}
+                tags={tags}
                 editing={editing ?? undefined}
                 onSubmit={handleSubmit}
                 onDelete={handleDelete}
+                onCreateTag={handleCreateTag}
               />
             </div>
           </div>

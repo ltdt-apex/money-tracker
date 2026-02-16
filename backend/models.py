@@ -117,11 +117,24 @@ for cat_name, cat_data in CATEGORIES.items():
 ALL_SUBCATEGORIES: set[str] = set(SUB_TO_CAT.keys())
 
 
+class TagCreate(BaseModel):
+    name: str
+    color: str
+
+
+class Tag(BaseModel):
+    id: int
+    user_id: int
+    name: str
+    color: str
+
+
 class ExpenseCreate(BaseModel):
     title: str
     amount: float
     subcategory: str
     date: str
+    tag_ids: list[int] = []
 
 
 class Expense(BaseModel):
@@ -133,3 +146,4 @@ class Expense(BaseModel):
     subcategory: str
     date: str
     created_at: str
+    tags: list[Tag] = []

@@ -313,6 +313,41 @@ body {
   }
 }
 
+/* Tag Breakdown */
+.tag-breakdown {
+  margin-top: 1.5rem;
+  border-top: 1px solid #e5e7eb;
+  padding-top: 1.25rem;
+}
+
+.tag-breakdown-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin-bottom: 0.75rem;
+}
+
+.tag-breakdown-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.tag-breakdown-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.tag-breakdown-row .tag-pill-sm {
+  min-width: 0;
+}
+
+.tag-breakdown-row .breakdown-count {
+  margin-left: auto;
+}
+
 /* Spend Calendar */
 .cal {
   margin-top: 1.5rem;
@@ -739,4 +774,229 @@ body {
   color: #9ca3af;
   padding: 3rem 1rem;
   font-size: 1.05rem;
+}
+
+/* Tags */
+.tag-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 9999px;
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 600;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+.tag-pill-sm {
+  font-size: 0.6rem;
+  padding: 0.1rem 0.4rem;
+}
+
+.tag-pill-remove {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  line-height: 1;
+}
+
+.tag-pill-remove:hover {
+  color: white;
+}
+
+.expense-tags {
+  display: inline-flex;
+  gap: 0.3rem;
+  margin-left: 0.4rem;
+  vertical-align: middle;
+}
+
+.tag-picker {
+  position: relative;
+}
+
+.tag-picker-selected {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 38px;
+  padding: 0.4rem 0.5rem;
+  border: 1.5px solid #e0e0e0;
+  border-radius: 8px;
+  background: white;
+  cursor: default;
+}
+
+.tag-add-btn {
+  background: #f3f4f6;
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #6b7280;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+
+.tag-add-btn:hover {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.tag-picker-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  background: white;
+  border: 1.5px solid #e0e0e0;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  margin-top: 4px;
+  padding: 0.5rem;
+  animation: fadeIn 0.1s ease;
+}
+
+.tag-picker-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  max-height: 160px;
+  overflow-y: auto;
+  margin-bottom: 0.35rem;
+}
+
+.tag-search-input {
+  width: 100%;
+  padding: 0.4rem 0.6rem;
+  border: none;
+  border-bottom: 1px solid #e5e7eb;
+  border-radius: 0;
+  font-size: 0.85rem;
+  outline: none;
+  margin-bottom: 0.25rem;
+}
+
+.tag-picker-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.4rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.1s;
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+}
+
+.tag-picker-option:hover {
+  background: #f3f4f6;
+}
+
+.tag-color-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.tag-create-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  width: 100%;
+  padding: 0.4rem;
+  border: none;
+  background: none;
+  color: #4f46e5;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background 0.1s;
+}
+
+.tag-create-btn:hover {
+  background: #eef2ff;
+}
+
+.tag-create-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.25rem 0;
+}
+
+.tag-create-input {
+  padding: 0.4rem 0.6rem;
+  border: 1.5px solid #e0e0e0;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  width: 100%;
+}
+
+.tag-create-input:focus {
+  outline: none;
+  border-color: #4f46e5;
+}
+
+.tag-palette {
+  display: flex;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+}
+
+.tag-palette-swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+
+.tag-palette-swatch:hover {
+  transform: scale(1.15);
+}
+
+.tag-palette-swatch-active {
+  border-color: #1a1a2e;
+  transform: scale(1.15);
+}
+
+.tag-create-confirm {
+  background: #4f46e5;
+  color: white;
+  border: none;
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  align-self: flex-end;
+  transition: background 0.15s;
+}
+
+.tag-create-confirm:hover {
+  background: #4338ca;
+}
+
+.tag-create-confirm:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }

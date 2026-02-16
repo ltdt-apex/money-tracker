@@ -7,6 +7,18 @@ export interface CategoryData {
 
 export type Categories = Record<string, CategoryData>;
 
+export interface Tag {
+  id: number;
+  user_id: number;
+  name: string;
+  color: string;
+}
+
+export interface TagCreate {
+  name: string;
+  color: string;
+}
+
 export interface Expense {
   id: number;
   user_id: number;
@@ -16,6 +28,7 @@ export interface Expense {
   subcategory: string;
   date: string;
   created_at: string;
+  tags: Tag[];
 }
 
 export interface ExpenseCreate {
@@ -23,6 +36,7 @@ export interface ExpenseCreate {
   amount: number;
   subcategory: string;
   date: string;
+  tag_ids: number[];
 }
 
 export async function fetchExpenses(): Promise<Expense[]> {
@@ -60,6 +74,37 @@ export async function fetchCategories(): Promise<Categories> {
   const res = await fetch(`${BASE}/categories`);
   if (!res.ok) throw new Error("Failed to fetch categories");
   return res.json();
+}
+
+export async function fetchTags(): Promise<Tag[]> {
+  const res = await fetch(`${BASE}/tags`);
+  if (!res.ok) throw new Error("Failed to fetch tags");
+  return res.json();
+}
+
+export async function createTag(data: TagCreate): Promise<Tag> {
+  const res = await fetch(`${BASE}/tags`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error("Failed to create tag");
+  return res.json();
+}
+
+export async function updateTag(id: number, data: TagCreate): Promise<Tag> {
+  const res = await fetch(`${BASE}/tags/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error("Failed to update tag");
+  return res.json();
+}
+
+export async function deleteTag(id: number): Promise<void> {
+  const res = await fetch(`${BASE}/tags/${id}`, { method: "DELETE" });
+  if (!res.ok) throw new Error("Failed to delete tag");
 }
 
 // Build a flat lookup: subcategory name -> its emoji

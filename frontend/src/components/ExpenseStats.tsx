@@ -32,6 +32,13 @@ interface CategoryBreakdown {
   percentage: number;
 }
 
+interface TagBreakdown {
+  name: string;
+  color: string;
+  amount: number;
+  count: number;
+}
+
 function formatCurrency(n: number): string {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -120,6 +127,24 @@ export default function ExpenseStats({ expenses, categories, onDateClick }: Prop
     return { breakdown, total };
   }, [filtered, categories]);
 
+  const tagBreakdown = useMemo(() => {
+    const map = new Map<number, TagBreakdown>();
+
+    for (const e of filtered) {
+      for (const tag of e.tags) {
+        const existing = map.get(tag.id);
+        if (existing) {
+          existing.amount += e.amount;
+          existing.count++;
+        } else {
+          map.set(tag.id, { name: tag.name, color: tag.color, amount: e.amount, count: 1 });
+        }
+      }
+    }
+
+    return Array.from(map.values()).sort((a, b) => b.amount - a.amount);
+  }, [filtered]);
+
   if (expenses.length === 0) {
     return (
       <div className="stats-container">
@@ -192,6 +217,23 @@ export default function ExpenseStats({ expenses, categories, onDateClick }: Prop
               ))}
             </div>
           </div>
+
+          {tagBreakdown.length > 0 && (
+            <div className="tag-breakdown">
+              <h3 className="tag-breakdown-title">Spending by Tag</h3>
+              <div className="tag-breakdown-list">
+                {tagBreakdown.map((t) => (
+                  <div key={t.name} className="tag-breakdown-row">
+                    <span className="tag-pill tag-pill-sm" style={{ background: t.color }}>
+                      {t.name}
+                    </span>
+                    <span className="breakdown-count">{t.count} txn{t.count !== 1 ? "s" : ""}</span>
+                    <span className="breakdown-amount">{formatCurrency(t.amount)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <SpendCalendar expenses={filtered} categories={categories} onDateClick={onDateClick} />
         </>

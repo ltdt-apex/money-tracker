@@ -1,23 +1,29 @@
 import { useState } from "react";
-import type { Categories, Expense, ExpenseCreate } from "../api";
+import type { Categories, Expense, ExpenseCreate, Tag, TagCreate } from "../api";
 import CategoryPicker from "./CategoryPicker";
+import TagPicker from "./TagPicker";
 
 interface Props {
   categories: Categories;
+  tags: Tag[];
   editing?: Expense;
   onSubmit: (data: ExpenseCreate) => void;
   onDelete?: (id: number) => void;
+  onCreateTag: (data: TagCreate) => Promise<Tag>;
 }
 
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-export default function ExpenseForm({ categories, editing, onSubmit, onDelete }: Props) {
+export default function ExpenseForm({ categories, tags, editing, onSubmit, onDelete, onCreateTag }: Props) {
   const [title, setTitle] = useState(editing?.title ?? "");
   const [amount, setAmount] = useState(editing ? String(editing.amount) : "");
   const [subcategory, setSubcategory] = useState(editing?.subcategory ?? "");
   const [date, setDate] = useState(editing?.date ?? todayISO());
+  const [selectedTagIds, setSelectedTagIds] = useState<number[]>(
+    editing?.tags.map((t) => t.id) ?? []
+  );
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -28,6 +34,7 @@ export default function ExpenseForm({ categories, editing, onSubmit, onDelete }:
       amount: parsed,
       subcategory: subcategory || "Uncategorized",
       date,
+      tag_ids: selectedTagIds,
     });
   }
 
@@ -74,6 +81,15 @@ export default function ExpenseForm({ categories, editing, onSubmit, onDelete }:
             onChange={setSubcategory}
           />
         </div>
+      </div>
+      <div className="form-field">
+        <label className="form-label">Tags</label>
+        <TagPicker
+          tags={tags}
+          selected={selectedTagIds}
+          onChange={setSelectedTagIds}
+          onCreateTag={onCreateTag}
+        />
       </div>
       <div className="form-actions">
         {editing && onDelete && (
