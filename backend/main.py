@@ -262,7 +262,7 @@ def list_categories(
             "SELECT category, subcategory, emoji FROM custom_subcategories WHERE clerk_user_id = ? AND profile_id = ?",
             (user_id, profile_id),
         ).fetchall()
-            for r in rows:
+        for r in rows:
             cat = r["category"]
             if cat not in result:
                 result[cat] = {"emoji": r["emoji"], "subcategories": {}}
