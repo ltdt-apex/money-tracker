@@ -99,12 +99,17 @@ export default function ExpenseStats({ expenses, categories, onDateClick }: Prop
     return expenses.filter((e) => e.date >= cutoff);
   }, [expenses, range]);
 
-  const { breakdown, total } = useMemo(() => {
+  const { breakdown, totalExpenses, totalIncome } = useMemo(() => {
     const map = new Map<string, { amount: number; count: number }>();
-    let total = 0;
+    let totalExpenses = 0;
+    let totalIncome = 0;
 
     for (const e of filtered) {
-      total += e.amount;
+      if (e.category === "Income") {
+        totalIncome += e.amount;
+      } else {
+        totalExpenses += e.amount;
+      }
       const existing = map.get(e.category);
       if (existing) {
         existing.amount += e.amount;
@@ -114,6 +119,7 @@ export default function ExpenseStats({ expenses, categories, onDateClick }: Prop
       }
     }
 
+    const total = totalExpenses + totalIncome;
     const breakdown: CategoryBreakdown[] = Array.from(map.entries())
       .map(([name, { amount, count }]) => ({
         name,
@@ -124,7 +130,7 @@ export default function ExpenseStats({ expenses, categories, onDateClick }: Prop
       }))
       .sort((a, b) => b.amount - a.amount);
 
-    return { breakdown, total };
+    return { breakdown, totalExpenses, totalIncome };
   }, [filtered, categories]);
 
   const tagBreakdown = useMemo(() => {
@@ -167,9 +173,17 @@ export default function ExpenseStats({ expenses, categories, onDateClick }: Prop
         ))}
       </div>
 
-      <div className="stats-total">
-        <span className="stats-total-label">Total Spent</span>
-        <span className="stats-total-amount">{formatCurrency(total)}</span>
+      <div className="stats-totals-row">
+        {totalIncome > 0 && (
+          <div className="stats-total">
+            <span className="stats-total-label">Total Income</span>
+            <span className="stats-total-amount stats-total-income">{formatCurrency(totalIncome)}</span>
+          </div>
+        )}
+        <div className="stats-total">
+          <span className="stats-total-label">Total Expenses</span>
+          <span className="stats-total-amount">{formatCurrency(totalExpenses)}</span>
+        </div>
       </div>
 
       {filtered.length === 0 ? (

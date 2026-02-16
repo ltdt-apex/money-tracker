@@ -58,7 +58,9 @@ export default function ExpenseTimeline({ expenses, emojiMap, onEdit }: Props) {
                     )}
                   </span>
                 </div>
-                <span className="expense-amount">{formatAmount(exp.amount)}</span>
+                <span className={`expense-amount ${exp.category === "Income" ? "expense-amount-income" : "expense-amount-expense"}`}>
+                  {exp.category === "Income" ? "+" : "-"}{formatAmount(exp.amount)}
+                </span>
                 <button
                   className="edit-btn"
                   onClick={() => onEdit(exp)}

@@ -6,12 +6,11 @@ import ExpenseForm from "./components/ExpenseForm";
 import ExpenseTimeline from "./components/ExpenseTimeline";
 import ExpenseStats from "./components/ExpenseStats";
 
-function formatTotal(expenses: Expense[]): string {
-  const total = expenses.reduce((sum, e) => sum + e.amount, 0);
+function formatCurrency(n: number): string {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
-  }).format(total);
+  }).format(n);
 }
 
 export default function App() {
@@ -23,6 +22,16 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<"expenses" | "stats">("expenses");
 
   const emojiMap = useMemo(() => buildEmojiMap(categories), [categories]);
+
+  const { income, spent, balance } = useMemo(() => {
+    let income = 0;
+    let spent = 0;
+    for (const e of expenses) {
+      if (e.category === "Income") income += e.amount;
+      else spent += e.amount;
+    }
+    return { income, spent, balance: income - spent };
+  }, [expenses]);
 
   useEffect(() => {
     fetchExpenses().then(setExpenses).catch(console.error);
@@ -97,8 +106,21 @@ export default function App() {
           <div className="group-info">
             <div className="group-icon">$</div>
             <div className="group-text">
-              <h2 className="group-title">My Expenses</h2>
-              <span className="group-total">Total spent: {formatTotal(expenses)}</span>
+              <h2 className="group-title">Money Tracker</h2>
+              <div className="header-summary">
+                <span className="header-summary-item">
+                  <span className="header-summary-label">Income</span>
+                  <span className="header-summary-value header-summary-income">{formatCurrency(income)}</span>
+                </span>
+                <span className="header-summary-item">
+                  <span className="header-summary-label">Expenses</span>
+                  <span className="header-summary-value header-summary-expense">{formatCurrency(spent)}</span>
+                </span>
+                <span className="header-summary-item">
+                  <span className="header-summary-label">Balance</span>
+                  <span className={`header-summary-value ${balance >= 0 ? "balance-positive" : "balance-negative"}`}>{formatCurrency(balance)}</span>
+                </span>
+              </div>
             </div>
           </div>
           <button className="new-expense-btn" onClick={openNew}>
