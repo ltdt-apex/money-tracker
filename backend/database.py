@@ -15,10 +15,25 @@ def get_connection() -> sqlite3.Connection:
 
 def init_db() -> None:
     conn = get_connection()
+
+    # Profiles table (must be created before expenses/tags that reference it)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS profiles (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            clerk_user_id TEXT NOT NULL,
+            name TEXT NOT NULL,
+            emoji TEXT NOT NULL DEFAULT '💰',
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            UNIQUE(clerk_user_id, name)
+        )
+    """)
+
     conn.execute("""
         CREATE TABLE IF NOT EXISTS expenses (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER NOT NULL DEFAULT 1,
+            clerk_user_id TEXT,
+            profile_id INTEGER REFERENCES profiles(id),
             title TEXT NOT NULL,
             amount REAL NOT NULL,
             category TEXT NOT NULL DEFAULT 'Other',
@@ -34,7 +49,9 @@ def init_db() -> None:
             name TEXT NOT NULL,
             color TEXT NOT NULL DEFAULT '#4F46E5',
             created_at TEXT NOT NULL DEFAULT (datetime('now')),
-            UNIQUE(user_id, name)
+            clerk_user_id TEXT,
+            profile_id INTEGER REFERENCES profiles(id),
+            UNIQUE(clerk_user_id, name)
         )
     """)
     conn.execute("""
@@ -44,21 +61,22 @@ def init_db() -> None:
             PRIMARY KEY (expense_id, tag_id)
         )
     """)
-    # migrate: add columns if missing (existing databases)
+
+    # --- Migrations for existing databases ---
     cols = [r[1] for r in conn.execute("PRAGMA table_info(expenses)").fetchall()]
     if "category" not in cols:
         conn.execute("ALTER TABLE expenses ADD COLUMN category TEXT NOT NULL DEFAULT 'Other'")
     if "subcategory" not in cols:
         conn.execute("ALTER TABLE expenses ADD COLUMN subcategory TEXT NOT NULL DEFAULT '❓ Uncategorized'")
-
-    # Multi-user migration: add clerk_user_id column
     if "clerk_user_id" not in cols:
         conn.execute("ALTER TABLE expenses ADD COLUMN clerk_user_id TEXT")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_expenses_clerk_user ON expenses(clerk_user_id)")
+    if "profile_id" not in cols:
+        conn.execute("ALTER TABLE expenses ADD COLUMN profile_id INTEGER REFERENCES profiles(id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_expenses_profile ON expenses(profile_id)")
 
     tag_cols = [r[1] for r in conn.execute("PRAGMA table_info(tags)").fetchall()]
     if "clerk_user_id" not in tag_cols:
-        # Recreate tags table with UNIQUE on (clerk_user_id, name) instead of (user_id, name)
         conn.execute("ALTER TABLE tags RENAME TO tags_old")
         conn.execute("""
             CREATE TABLE tags (
@@ -77,25 +95,6 @@ def init_db() -> None:
         """)
         conn.execute("DROP TABLE tags_old")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_tags_clerk_user ON tags(clerk_user_id)")
-
-    # Profiles table
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS profiles (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            clerk_user_id TEXT NOT NULL,
-            name TEXT NOT NULL,
-            emoji TEXT NOT NULL DEFAULT '💰',
-            created_at TEXT NOT NULL DEFAULT (datetime('now')),
-            UNIQUE(clerk_user_id, name)
-        )
-    """)
-
-    # Migration: add profile_id to expenses
-    if "profile_id" not in cols:
-        conn.execute("ALTER TABLE expenses ADD COLUMN profile_id INTEGER REFERENCES profiles(id)")
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_expenses_profile ON expenses(profile_id)")
-
-    # Migration: add profile_id to tags
     if "profile_id" not in tag_cols:
         conn.execute("ALTER TABLE tags ADD COLUMN profile_id INTEGER REFERENCES profiles(id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_tags_profile ON tags(profile_id)")
