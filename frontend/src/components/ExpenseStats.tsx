@@ -84,7 +84,7 @@ function PieTooltip({ active, payload }: any) {
         Total: {formatCurrency(data.amount)} ({data.percentage.toFixed(1)}%)
       </div>
       <div className="pie-tooltip-line">
-        {data.count} expense{data.count !== 1 ? "s" : ""}
+        {data.count} transaction{data.count !== 1 ? "s" : ""}
       </div>
     </div>
   );
@@ -166,7 +166,7 @@ export default function ExpenseStats({ expenses, categories, onDateClick }: Prop
   if (expenses.length === 0) {
     return (
       <div className="stats-container">
-        <p className="empty-state">No expenses to analyze yet.</p>
+        <p className="empty-state">No transactions to analyze yet.</p>
       </div>
     );
   }
@@ -233,12 +233,12 @@ export default function ExpenseStats({ expenses, categories, onDateClick }: Prop
       </div>
 
       {filtered.length === 0 ? (
-        <p className="empty-state">No expenses in this period.</p>
+        <p className="empty-state">No transactions in this period.</p>
       ) : (
         <>
           <div className="stats-section-divider" />
           <div className="stats-total">
-            <span className="stats-total-label">Total Expenses</span>
+            <span className="stats-total-label">Total Spent</span>
             <span className="stats-total-amount stats-summary-amt-expense">{formatCurrency(totalExpenses)}</span>
           </div>
           <div className="stats-chart-row">

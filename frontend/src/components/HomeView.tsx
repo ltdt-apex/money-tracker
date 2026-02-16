@@ -18,7 +18,7 @@ function formatCurrency(n: number): string {
 export default function HomeView({ profiles, onSelectProfile, onNewProfile, onDeleteProfile }: HomeViewProps) {
   function handleDelete(e: React.MouseEvent, profile: ProfileSummary) {
     e.stopPropagation();
-    if (window.confirm(`Delete "${profile.name}"? Expenses and tags in this profile will become unassigned.`)) {
+    if (window.confirm(`Delete "${profile.name}"? Transactions and tags in this profile will become unassigned.`)) {
       onDeleteProfile(profile.id);
     }
   }

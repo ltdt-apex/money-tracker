@@ -97,7 +97,7 @@ export default function ExpenseForm({ categories, tags, editing, onSubmit, onDel
             Delete
           </button>
         )}
-        <button type="submit">{editing ? "Save changes" : "Add expense"}</button>
+        <button type="submit">{editing ? "Save changes" : "Add transaction"}</button>
       </div>
     </form>
   );

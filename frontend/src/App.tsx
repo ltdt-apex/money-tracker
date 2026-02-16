@@ -221,13 +221,13 @@ function AppContent() {
                   </div>
                   <div className="group-header-actions">
                     <button className="new-expense-btn" onClick={openNew}>
-                      New expense
+                      New transaction
                     </button>
                     <button
                       className="delete-profile-btn"
                       title="Delete profile"
                       onClick={() => {
-                        if (activeProfile && window.confirm(`Delete "${activeProfile.name}"? Expenses and tags will become unassigned.`)) {
+                        if (activeProfile && window.confirm(`Delete "${activeProfile.name}"? Transactions and tags will become unassigned.`)) {
                           handleDeleteProfile(activeProfile.id);
                         }
                       }}
@@ -242,7 +242,7 @@ function AppContent() {
                     className={`tab${activeTab === "expenses" ? " tab-active" : ""}`}
                     onClick={() => setActiveTab("expenses")}
                   >
-                    <Receipt size={16} /> Expenses
+                    <Receipt size={16} /> Transactions
                   </button>
                   <button
                     className={`tab${activeTab === "stats" ? " tab-active" : ""}`}
@@ -262,7 +262,7 @@ function AppContent() {
                   <div className="modal-overlay" onClick={closeForm}>
                     <div className="modal" onClick={(e) => e.stopPropagation()}>
                       <div className="modal-header">
-                        <h2>{editing ? "Edit expense" : "New expense"}</h2>
+                        <h2>{editing ? "Edit transaction" : "New transaction"}</h2>
                         <button className="modal-close" onClick={closeForm}>
                           &times;
                         </button>

@@ -32,7 +32,7 @@ export default function ExpenseTimeline({ expenses, emojiMap, onEdit }: Props) {
   }
 
   if (expenses.length === 0) {
-    return <p className="empty-state">No expenses yet. Add one above!</p>;
+    return <p className="empty-state">No transactions yet. Add one above!</p>;
   }
 
   return (
@@ -64,7 +64,7 @@ export default function ExpenseTimeline({ expenses, emojiMap, onEdit }: Props) {
                 <button
                   className="edit-btn"
                   onClick={() => onEdit(exp)}
-                  aria-label="Edit expense"
+                  aria-label="Edit transaction"
                 >
                   <Pencil size={14} />
                 </button>
