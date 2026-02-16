@@ -38,7 +38,7 @@ export default function ExpenseTimeline({ expenses, emojiMap, onEdit }: Props) {
   return (
     <div className="timeline">
       {[...grouped.entries()].map(([date, items]) => (
-        <div key={date} className="timeline-group">
+        <div key={date} className="timeline-group" data-date={date}>
           <div className="timeline-date-bar">{formatDate(date)}</div>
           <div className="timeline-table">
             {items.map((exp) => (

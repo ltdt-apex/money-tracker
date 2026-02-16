@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { fetchExpenses, fetchCategories, createExpense, updateExpense, deleteExpense, buildEmojiMap } from "./api";
 import type { Categories, Expense, ExpenseCreate } from "./api";
 import { Receipt, ChartPie } from "lucide-react";
 import ExpenseForm from "./components/ExpenseForm";
 import ExpenseTimeline from "./components/ExpenseTimeline";
+import ExpenseStats from "./components/ExpenseStats";
 
 function formatTotal(expenses: Expense[]): string {
   const total = expenses.reduce((sum, e) => sum + e.amount, 0);
@@ -64,6 +65,20 @@ export default function App() {
     closeForm();
   }
 
+  const handleDateClick = useCallback((date: string) => {
+    setActiveTab("expenses");
+    requestAnimationFrame(() => {
+      const group = document.querySelector(`.timeline-group[data-date="${date}"]`);
+      if (!group) return;
+      group.scrollIntoView({ behavior: "smooth", block: "start" });
+      const firstRow = group.querySelector(".timeline-row");
+      if (firstRow) {
+        firstRow.classList.add("timeline-row-highlight");
+        setTimeout(() => firstRow.classList.remove("timeline-row-highlight"), 1500);
+      }
+    });
+  }, []);
+
   return (
     <div className="app">
       <header className="app-header">
@@ -123,9 +138,7 @@ export default function App() {
         )}
 
         {activeTab === "stats" && (
-          <div className="stats-placeholder">
-            <p>Stats coming soon</p>
-          </div>
+          <ExpenseStats expenses={expenses} categories={categories} onDateClick={handleDateClick} />
         )}
       </main>
     </div>
