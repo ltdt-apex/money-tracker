@@ -1,9 +1,10 @@
+import { Pencil } from "lucide-react";
 import type { Expense } from "../api";
 
 interface Props {
   expenses: Expense[];
   emojiMap: Record<string, string>;
-  onDelete: (id: number) => void;
+  onEdit: (expense: Expense) => void;
 }
 
 function formatDate(dateStr: string): string {
@@ -22,7 +23,7 @@ function formatAmount(amount: number): string {
   }).format(amount);
 }
 
-export default function ExpenseTimeline({ expenses, emojiMap, onDelete }: Props) {
+export default function ExpenseTimeline({ expenses, emojiMap, onEdit }: Props) {
   const grouped = new Map<string, Expense[]>();
   for (const exp of expenses) {
     const list = grouped.get(exp.date) ?? [];
@@ -50,11 +51,11 @@ export default function ExpenseTimeline({ expenses, emojiMap, onDelete }: Props)
                 </div>
                 <span className="expense-amount">{formatAmount(exp.amount)}</span>
                 <button
-                  className="delete-btn"
-                  onClick={() => onDelete(exp.id)}
-                  aria-label="Delete expense"
+                  className="edit-btn"
+                  onClick={() => onEdit(exp)}
+                  aria-label="Edit expense"
                 >
-                  &times;
+                  <Pencil size={14} />
                 </button>
               </div>
             ))}

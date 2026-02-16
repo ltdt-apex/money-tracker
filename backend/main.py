@@ -52,6 +52,25 @@ def create_expense(data: ExpenseCreate) -> Expense:
     return Expense(**dict(row))
 
 
+@app.put("/api/expenses/{expense_id}", response_model=Expense)
+def update_expense(expense_id: int, data: ExpenseCreate) -> Expense:
+    if data.subcategory not in ALL_SUBCATEGORIES:
+        raise HTTPException(status_code=400, detail="Invalid subcategory")
+    category = SUB_TO_CAT[data.subcategory]
+    conn = get_connection()
+    result = conn.execute(
+        "UPDATE expenses SET title = ?, amount = ?, category = ?, subcategory = ?, date = ? WHERE id = ? AND user_id = 1",
+        (data.title, data.amount, category, data.subcategory, data.date, expense_id),
+    )
+    conn.commit()
+    if result.rowcount == 0:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Expense not found")
+    row = conn.execute("SELECT * FROM expenses WHERE id = ?", (expense_id,)).fetchone()
+    conn.close()
+    return Expense(**dict(row))
+
+
 @app.delete("/api/expenses/{expense_id}", status_code=204)
 def delete_expense(expense_id: int) -> None:
     conn = get_connection()

@@ -41,6 +41,16 @@ export async function createExpense(data: ExpenseCreate): Promise<Expense> {
   return res.json();
 }
 
+export async function updateExpense(id: number, data: ExpenseCreate): Promise<Expense> {
+  const res = await fetch(`${BASE}/expenses/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error("Failed to update expense");
+  return res.json();
+}
+
 export async function deleteExpense(id: number): Promise<void> {
   const res = await fetch(`${BASE}/expenses/${id}`, { method: "DELETE" });
   if (!res.ok) throw new Error("Failed to delete expense");

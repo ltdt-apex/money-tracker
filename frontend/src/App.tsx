@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { fetchExpenses, fetchCategories, createExpense, deleteExpense, buildEmojiMap } from "./api";
+import { fetchExpenses, fetchCategories, createExpense, updateExpense, deleteExpense, buildEmojiMap } from "./api";
 import type { Categories, Expense, ExpenseCreate } from "./api";
 import { Receipt, ChartPie } from "lucide-react";
 import ExpenseForm from "./components/ExpenseForm";
@@ -17,6 +17,7 @@ export default function App() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [categories, setCategories] = useState<Categories>({});
   const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<Expense | null>(null);
   const [activeTab, setActiveTab] = useState<"expenses" | "stats">("expenses");
 
   const emojiMap = useMemo(() => buildEmojiMap(categories), [categories]);
@@ -26,17 +27,41 @@ export default function App() {
     fetchCategories().then(setCategories).catch(console.error);
   }, []);
 
-  async function handleAdd(data: ExpenseCreate) {
-    const created = await createExpense(data);
-    setExpenses((prev) =>
-      [created, ...prev].sort((a, b) => b.date.localeCompare(a.date))
-    );
+  function openNew() {
+    setEditing(null);
+    setShowForm(true);
+  }
+
+  function openEdit(expense: Expense) {
+    setEditing(expense);
+    setShowForm(true);
+  }
+
+  function closeForm() {
     setShowForm(false);
+    setEditing(null);
+  }
+
+  async function handleSubmit(data: ExpenseCreate) {
+    if (editing) {
+      const updated = await updateExpense(editing.id, data);
+      setExpenses((prev) =>
+        prev.map((e) => (e.id === updated.id ? updated : e))
+          .sort((a, b) => b.date.localeCompare(a.date))
+      );
+    } else {
+      const created = await createExpense(data);
+      setExpenses((prev) =>
+        [created, ...prev].sort((a, b) => b.date.localeCompare(a.date))
+      );
+    }
+    closeForm();
   }
 
   async function handleDelete(id: number) {
     await deleteExpense(id);
     setExpenses((prev) => prev.filter((e) => e.id !== id));
+    closeForm();
   }
 
   return (
@@ -53,7 +78,7 @@ export default function App() {
               <span className="group-total">Total spent: {formatTotal(expenses)}</span>
             </div>
           </div>
-          <button className="new-expense-btn" onClick={() => setShowForm(true)}>
+          <button className="new-expense-btn" onClick={openNew}>
             New expense
           </button>
         </div>
@@ -74,21 +99,27 @@ export default function App() {
         </nav>
 
         {showForm && (
-          <div className="modal-overlay" onClick={() => setShowForm(false)}>
+          <div className="modal-overlay" onClick={closeForm}>
             <div className="modal" onClick={(e) => e.stopPropagation()}>
               <div className="modal-header">
-                <h2>New expense</h2>
-                <button className="modal-close" onClick={() => setShowForm(false)}>
+                <h2>{editing ? "Edit expense" : "New expense"}</h2>
+                <button className="modal-close" onClick={closeForm}>
                   &times;
                 </button>
               </div>
-              <ExpenseForm categories={categories} onSubmit={handleAdd} />
+              <ExpenseForm
+                key={editing?.id ?? "new"}
+                categories={categories}
+                editing={editing ?? undefined}
+                onSubmit={handleSubmit}
+                onDelete={handleDelete}
+              />
             </div>
           </div>
         )}
 
         {activeTab === "expenses" && (
-          <ExpenseTimeline expenses={expenses} emojiMap={emojiMap} onDelete={handleDelete} />
+          <ExpenseTimeline expenses={expenses} emojiMap={emojiMap} onEdit={openEdit} />
         )}
 
         {activeTab === "stats" && (

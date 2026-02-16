@@ -1,21 +1,23 @@
 import { useState } from "react";
-import type { Categories, ExpenseCreate } from "../api";
+import type { Categories, Expense, ExpenseCreate } from "../api";
 import CategoryPicker from "./CategoryPicker";
 
 interface Props {
   categories: Categories;
+  editing?: Expense;
   onSubmit: (data: ExpenseCreate) => void;
+  onDelete?: (id: number) => void;
 }
 
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-export default function ExpenseForm({ categories, onSubmit }: Props) {
-  const [title, setTitle] = useState("");
-  const [amount, setAmount] = useState("");
-  const [subcategory, setSubcategory] = useState("");
-  const [date, setDate] = useState(todayISO);
+export default function ExpenseForm({ categories, editing, onSubmit, onDelete }: Props) {
+  const [title, setTitle] = useState(editing?.title ?? "");
+  const [amount, setAmount] = useState(editing ? String(editing.amount) : "");
+  const [subcategory, setSubcategory] = useState(editing?.subcategory ?? "");
+  const [date, setDate] = useState(editing?.date ?? todayISO());
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -27,10 +29,6 @@ export default function ExpenseForm({ categories, onSubmit }: Props) {
       subcategory: subcategory || "Uncategorized",
       date,
     });
-    setTitle("");
-    setAmount("");
-    setSubcategory("");
-    setDate(todayISO());
   }
 
   return (
@@ -78,7 +76,12 @@ export default function ExpenseForm({ categories, onSubmit }: Props) {
         </div>
       </div>
       <div className="form-actions">
-        <button type="submit">Add expense</button>
+        {editing && onDelete && (
+          <button type="button" className="form-delete-btn" onClick={() => onDelete(editing.id)}>
+            Delete
+          </button>
+        )}
+        <button type="submit">{editing ? "Save changes" : "Add expense"}</button>
       </div>
     </form>
   );
