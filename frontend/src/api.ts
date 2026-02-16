@@ -107,6 +107,13 @@ export async function deleteTag(id: number): Promise<void> {
   if (!res.ok) throw new Error("Failed to delete tag");
 }
 
+export async function fetchSuggestions(): Promise<string> {
+  const res = await fetch(`${BASE}/suggestions`);
+  if (!res.ok) throw new Error("Failed to fetch suggestions");
+  const data = await res.json();
+  return data.suggestion;
+}
+
 // Build a flat lookup: subcategory name -> its emoji
 export function buildEmojiMap(categories: Categories): Record<string, string> {
   const map: Record<string, string> = {};

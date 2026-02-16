@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { fetchExpenses, fetchCategories, fetchTags, createExpense, updateExpense, deleteExpense, createTag, buildEmojiMap } from "./api";
 import type { Categories, Expense, ExpenseCreate, Tag, TagCreate } from "./api";
-import { Receipt, ChartPie } from "lucide-react";
+import { Receipt, ChartPie, Lightbulb } from "lucide-react";
 import ExpenseForm from "./components/ExpenseForm";
 import ExpenseTimeline from "./components/ExpenseTimeline";
 import ExpenseStats from "./components/ExpenseStats";
+import Suggestions from "./components/Suggestions";
 
 function formatCurrency(n: number): string {
   return new Intl.NumberFormat("en-US", {
@@ -19,7 +20,7 @@ export default function App() {
   const [tags, setTags] = useState<Tag[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Expense | null>(null);
-  const [activeTab, setActiveTab] = useState<"expenses" | "stats">("expenses");
+  const [activeTab, setActiveTab] = useState<"expenses" | "stats" | "suggestions">("expenses");
 
   const emojiMap = useMemo(() => buildEmojiMap(categories), [categories]);
 
@@ -141,6 +142,12 @@ export default function App() {
           >
             <ChartPie size={16} /> Stats
           </button>
+          <button
+            className={`tab${activeTab === "suggestions" ? " tab-active" : ""}`}
+            onClick={() => setActiveTab("suggestions")}
+          >
+            <Lightbulb size={16} /> Suggestions
+          </button>
         </nav>
 
         {showForm && (
@@ -172,6 +179,8 @@ export default function App() {
         {activeTab === "stats" && (
           <ExpenseStats expenses={expenses} categories={categories} onDateClick={handleDateClick} />
         )}
+
+        {activeTab === "suggestions" && <Suggestions />}
       </main>
     </div>
   );

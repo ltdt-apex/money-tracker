@@ -1,8 +1,17 @@
+import os
+from pathlib import Path
+
+import anthropic
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
+
+load_dotenv()
 from fastapi.middleware.cors import CORSMiddleware
 
 from database import get_connection, init_db
 from models import ALL_SUBCATEGORIES, CATEGORIES, SUB_TO_CAT, Expense, ExpenseCreate, Tag, TagCreate
+
+PROMPTS_DIR = Path(__file__).parent / "prompts"
 
 app = FastAPI(title="Money & Expense Tracker")
 
@@ -99,6 +108,74 @@ def update_expense(expense_id: int, data: ExpenseCreate) -> Expense:
     expense = _row_to_expense(conn, row)
     conn.close()
     return expense
+
+
+@app.get("/api/suggestions")
+def get_suggestions() -> dict:
+    from datetime import date
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY not configured")
+
+    today = date.today()
+    month_start = today.replace(day=1).isoformat()
+    month_end = today.isoformat()
+
+    conn = get_connection()
+    rows = conn.execute(
+        "SELECT category, subcategory, amount FROM expenses WHERE user_id = 1 AND date >= ? AND date <= ?",
+        (month_start, month_end),
+    ).fetchall()
+    conn.close()
+
+    total_income = 0.0
+    total_expenses = 0.0
+    cat_totals: dict[str, float] = {}
+    income_totals: dict[str, float] = {}
+
+    for r in rows:
+        category, subcategory, amount = r["category"], r["subcategory"], r["amount"]
+        if category == "Income":
+            total_income += amount
+            income_totals[subcategory] = income_totals.get(subcategory, 0) + amount
+        else:
+            total_expenses += amount
+            cat_totals[category] = cat_totals.get(category, 0) + amount
+
+    balance = total_income - total_expenses
+    date_range = today.strftime("%B %Y")
+
+    cat_lines = []
+    for cat, amt in sorted(cat_totals.items(), key=lambda x: -x[1]):
+        pct = (amt / total_expenses * 100) if total_expenses else 0
+        cat_lines.append(f"- {cat}: ${amt:.2f} ({pct:.0f}%)")
+    category_breakdown = "\n".join(cat_lines) if cat_lines else "No expenses recorded."
+
+    inc_lines = []
+    for sub, amt in sorted(income_totals.items(), key=lambda x: -x[1]):
+        inc_lines.append(f"- {sub}: ${amt:.2f}")
+    income_breakdown = "\n".join(inc_lines) if inc_lines else "No income recorded."
+
+    template = (PROMPTS_DIR / "suggestions.txt").read_text()
+    prompt = template.format(
+        total_income=total_income,
+        total_expenses=total_expenses,
+        balance=balance,
+        category_breakdown=category_breakdown,
+        income_breakdown=income_breakdown,
+        date_range=date_range,
+    )
+
+    client = anthropic.Anthropic(api_key=api_key)
+    message = client.messages.create(
+        model="claude-sonnet-4-5-20250929",
+        max_tokens=1024,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    suggestion_text = message.content[0].text
+
+    return {"suggestion": suggestion_text}
 
 
 @app.delete("/api/expenses/{expense_id}", status_code=204)
