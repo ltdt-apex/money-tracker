@@ -4,7 +4,8 @@ from typing import Optional
 
 import anthropic
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
+from fastapi.responses import JSONResponse
 
 load_dotenv()
 from fastapi.middleware.cors import CORSMiddleware
@@ -40,6 +41,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    import traceback
+    traceback.print_exc()
+    return JSONResponse(status_code=500, content={"detail": str(exc)})
 
 
 @app.get("/api/health")
