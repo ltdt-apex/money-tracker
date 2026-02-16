@@ -11,7 +11,7 @@ import type {
   Categories, Expense, ExpenseCreate, Tag, TagCreate, ProfileSummary, ProfileSettings,
   CustomSubcategory, CustomSubcategoryCreate,
 } from "./api";
-import { Receipt, ChartPie, Lightbulb, Settings, Menu, Trash2 } from "lucide-react";
+import { Receipt, ChartPie, Lightbulb, Menu, Trash2 } from "lucide-react";
 import ExpenseForm from "./components/ExpenseForm";
 import ExpenseTimeline from "./components/ExpenseTimeline";
 import ExpenseStats from "./components/ExpenseStats";
