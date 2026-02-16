@@ -90,7 +90,6 @@ def list_profiles(user_id: str = Depends(get_current_user_id)) -> list[ProfileSu
         income = sum(r["amount"] for r in rows if r["category"] == "Income")
         expenses = sum(r["amount"] for r in rows if r["category"] != "Income")
         result.append(ProfileSummary(**pd, income=income, expenses=expenses, balance=income - expenses))
-    conn.close()
     return result
 
 
@@ -104,10 +103,8 @@ def create_profile(data: ProfileCreate, user_id: str = Depends(get_current_user_
         )
         conn.commit()
     except Exception:
-        conn.close()
-        raise HTTPException(status_code=409, detail="Profile name already exists")
+            raise HTTPException(status_code=409, detail="Profile name already exists")
     row = conn.execute("SELECT * FROM profiles WHERE id = ?", (cursor.lastrowid,)).fetchone()
-    conn.close()
     return Profile(**_profile_from_row(row))
 
 
@@ -120,10 +117,8 @@ def update_profile(profile_id: int, data: ProfileCreate, user_id: str = Depends(
     )
     conn.commit()
     if result.rowcount == 0:
-        conn.close()
-        raise HTTPException(status_code=404, detail="Profile not found")
+            raise HTTPException(status_code=404, detail="Profile not found")
     row = conn.execute("SELECT * FROM profiles WHERE id = ?", (profile_id,)).fetchone()
-    conn.close()
     return Profile(**_profile_from_row(row))
 
 
@@ -144,9 +139,7 @@ def delete_profile(profile_id: int, user_id: str = Depends(get_current_user_id))
     )
     conn.commit()
     if result.rowcount == 0:
-        conn.close()
-        raise HTTPException(status_code=404, detail="Profile not found")
-    conn.close()
+            raise HTTPException(status_code=404, detail="Profile not found")
 
 
 @app.put("/api/profiles/{profile_id}/settings", response_model=Profile)
@@ -163,18 +156,15 @@ def update_profile_settings(
     valid = ALL_SUBCATEGORIES | {r["subcategory"] for r in custom_rows}
     invalid = set(data.disabled_subcategories) - valid
     if invalid:
-        conn.close()
-        raise HTTPException(status_code=400, detail=f"Invalid subcategories: {', '.join(invalid)}")
+            raise HTTPException(status_code=400, detail=f"Invalid subcategories: {', '.join(invalid)}")
     result = conn.execute(
         "UPDATE profiles SET disabled_subcategories = ? WHERE id = ? AND clerk_user_id = ?",
         (json.dumps(data.disabled_subcategories), profile_id, user_id),
     )
     conn.commit()
     if result.rowcount == 0:
-        conn.close()
-        raise HTTPException(status_code=404, detail="Profile not found")
+            raise HTTPException(status_code=404, detail="Profile not found")
     row = conn.execute("SELECT * FROM profiles WHERE id = ?", (profile_id,)).fetchone()
-    conn.close()
     return Profile(**_profile_from_row(row))
 
 
@@ -207,7 +197,6 @@ def migrate_legacy(user_id: str = Depends(get_current_user_id)) -> Profile:
         (profile.id, user_id),
     )
     conn.commit()
-    conn.close()
     return profile
 
 
@@ -257,7 +246,6 @@ def list_expenses(
             (user_id,),
         ).fetchall()
     expenses = [_row_to_expense(conn, r) for r in rows]
-    conn.close()
     return expenses
 
 
@@ -274,8 +262,7 @@ def list_categories(
             "SELECT category, subcategory, emoji FROM custom_subcategories WHERE clerk_user_id = ? AND profile_id = ?",
             (user_id, profile_id),
         ).fetchall()
-        conn.close()
-        for r in rows:
+            for r in rows:
             cat = r["category"]
             if cat not in result:
                 result[cat] = {"emoji": r["emoji"], "subcategories": {}}
@@ -315,7 +302,6 @@ def create_expense(
         "SELECT * FROM expenses WHERE id = ?", (cursor.lastrowid,)
     ).fetchone()
     expense = _row_to_expense(conn, row)
-    conn.close()
     return expense
 
 
@@ -331,13 +317,11 @@ def update_expense(expense_id: int, data: ExpenseCreate, user_id: str = Depends(
         (data.title, data.amount, category, data.subcategory, data.date, expense_id, user_id),
     )
     if result.rowcount == 0:
-        conn.close()
-        raise HTTPException(status_code=404, detail="Expense not found")
+            raise HTTPException(status_code=404, detail="Expense not found")
     _sync_expense_tags(conn, expense_id, data.tag_ids)
     conn.commit()
     row = conn.execute("SELECT * FROM expenses WHERE id = ?", (expense_id,)).fetchone()
     expense = _row_to_expense(conn, row)
-    conn.close()
     return expense
 
 
@@ -367,7 +351,6 @@ def get_suggestions(
             "SELECT category, subcategory, amount FROM expenses WHERE clerk_user_id = ? AND date >= ? AND date <= ?",
             (user_id, month_start, month_end),
         ).fetchall()
-    conn.close()
 
     total_income = 0.0
     total_expenses = 0.0
@@ -426,9 +409,7 @@ def delete_expense(expense_id: int, user_id: str = Depends(get_current_user_id))
     )
     conn.commit()
     if result.rowcount == 0:
-        conn.close()
-        raise HTTPException(status_code=404, detail="Expense not found")
-    conn.close()
+            raise HTTPException(status_code=404, detail="Expense not found")
 
 
 # --- Custom Subcategory CRUD ---
@@ -443,7 +424,6 @@ def list_custom_subcategories(
         "SELECT * FROM custom_subcategories WHERE clerk_user_id = ? AND profile_id = ? ORDER BY category, subcategory",
         (user_id, profile_id),
     ).fetchall()
-    conn.close()
     return [CustomSubcategory(**dict(r)) for r in rows]
 
 
@@ -463,10 +443,8 @@ def create_custom_subcategory(
         )
         conn.commit()
     except Exception:
-        conn.close()
-        raise HTTPException(status_code=409, detail="Subcategory name already exists for this profile")
+            raise HTTPException(status_code=409, detail="Subcategory name already exists for this profile")
     row = conn.execute("SELECT * FROM custom_subcategories WHERE id = ?", (cursor.lastrowid,)).fetchone()
-    conn.close()
     return CustomSubcategory(**dict(row))
 
 
@@ -478,9 +456,7 @@ def delete_custom_subcategory(sub_id: int, user_id: str = Depends(get_current_us
     )
     conn.commit()
     if result.rowcount == 0:
-        conn.close()
-        raise HTTPException(status_code=404, detail="Custom subcategory not found")
-    conn.close()
+            raise HTTPException(status_code=404, detail="Custom subcategory not found")
 
 
 # --- Tag CRUD ---
@@ -501,7 +477,6 @@ def list_tags(
             "SELECT id, user_id, name, color FROM tags WHERE clerk_user_id = ? ORDER BY name",
             (user_id,),
         ).fetchall()
-    conn.close()
     return [Tag(**dict(r)) for r in rows]
 
 
@@ -519,12 +494,10 @@ def create_tag(
         )
         conn.commit()
     except Exception:
-        conn.close()
-        raise HTTPException(status_code=409, detail="Tag name already exists")
+            raise HTTPException(status_code=409, detail="Tag name already exists")
     row = conn.execute(
         "SELECT id, user_id, name, color FROM tags WHERE id = ?", (cursor.lastrowid,)
     ).fetchone()
-    conn.close()
     return Tag(**dict(row))
 
 
@@ -537,12 +510,10 @@ def update_tag(tag_id: int, data: TagCreate, user_id: str = Depends(get_current_
     )
     conn.commit()
     if result.rowcount == 0:
-        conn.close()
-        raise HTTPException(status_code=404, detail="Tag not found")
+            raise HTTPException(status_code=404, detail="Tag not found")
     row = conn.execute(
         "SELECT id, user_id, name, color FROM tags WHERE id = ?", (tag_id,)
     ).fetchone()
-    conn.close()
     return Tag(**dict(row))
 
 
@@ -554,6 +525,4 @@ def delete_tag(tag_id: int, user_id: str = Depends(get_current_user_id)) -> None
     )
     conn.commit()
     if result.rowcount == 0:
-        conn.close()
-        raise HTTPException(status_code=404, detail="Tag not found")
-    conn.close()
+            raise HTTPException(status_code=404, detail="Tag not found")

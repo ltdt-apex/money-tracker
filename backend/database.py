@@ -1,16 +1,23 @@
 import sqlite3
+import threading
 from pathlib import Path
 
 DB_PATH = Path(__file__).parent / "expenses.db"
 
+_connection: sqlite3.Connection | None = None
+_lock = threading.Lock()
+
 
 def get_connection() -> sqlite3.Connection:
-    conn = sqlite3.connect(str(DB_PATH), timeout=10, check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA busy_timeout=5000")
-    conn.execute("PRAGMA foreign_keys=ON")
-    return conn
+    global _connection
+    with _lock:
+        if _connection is None:
+            _connection = sqlite3.connect(str(DB_PATH), timeout=30, check_same_thread=False)
+            _connection.row_factory = sqlite3.Row
+            _connection.execute("PRAGMA journal_mode=WAL")
+            _connection.execute("PRAGMA busy_timeout=10000")
+            _connection.execute("PRAGMA foreign_keys=ON")
+        return _connection
 
 
 def init_db() -> None:
@@ -119,4 +126,3 @@ def init_db() -> None:
     """)
 
     conn.commit()
-    conn.close()
