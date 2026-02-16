@@ -14,10 +14,8 @@ CATEGORIES: dict[str, dict] = {
     "Food & Drinks": {
         "emoji": "🍔",
         "subcategories": {
-            "Restaurant": "🍽️",
-            "Cafe & Coffee": "☕",
-            "Bar & Alcohol": "🍺",
-            "Takeout & Delivery": "🥡",
+            "Food": "🍽️",
+            "Drinks": "☕",
             "Snacks": "🍿",
         },
     },
