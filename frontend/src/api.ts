@@ -1,5 +1,25 @@
 const BASE = "http://localhost:8000/api";
 
+let getTokenFn: (() => Promise<string | null>) | null = null;
+
+export function setAuthTokenGetter(fn: () => Promise<string | null>) {
+  getTokenFn = fn;
+}
+
+async function authFetch(url: string, options: RequestInit = {}): Promise<Response> {
+  const token = getTokenFn ? await getTokenFn() : null;
+
+  const headers: Record<string, string> = {
+    ...(options.headers as Record<string, string>),
+  };
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  return fetch(url, { ...options, headers });
+}
+
 export interface CategoryData {
   emoji: string;
   subcategories: Record<string, string>; // name -> emoji
@@ -40,13 +60,13 @@ export interface ExpenseCreate {
 }
 
 export async function fetchExpenses(): Promise<Expense[]> {
-  const res = await fetch(`${BASE}/expenses`);
+  const res = await authFetch(`${BASE}/expenses`);
   if (!res.ok) throw new Error("Failed to fetch expenses");
   return res.json();
 }
 
 export async function createExpense(data: ExpenseCreate): Promise<Expense> {
-  const res = await fetch(`${BASE}/expenses`, {
+  const res = await authFetch(`${BASE}/expenses`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -56,7 +76,7 @@ export async function createExpense(data: ExpenseCreate): Promise<Expense> {
 }
 
 export async function updateExpense(id: number, data: ExpenseCreate): Promise<Expense> {
-  const res = await fetch(`${BASE}/expenses/${id}`, {
+  const res = await authFetch(`${BASE}/expenses/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -66,7 +86,7 @@ export async function updateExpense(id: number, data: ExpenseCreate): Promise<Ex
 }
 
 export async function deleteExpense(id: number): Promise<void> {
-  const res = await fetch(`${BASE}/expenses/${id}`, { method: "DELETE" });
+  const res = await authFetch(`${BASE}/expenses/${id}`, { method: "DELETE" });
   if (!res.ok) throw new Error("Failed to delete expense");
 }
 
@@ -77,13 +97,13 @@ export async function fetchCategories(): Promise<Categories> {
 }
 
 export async function fetchTags(): Promise<Tag[]> {
-  const res = await fetch(`${BASE}/tags`);
+  const res = await authFetch(`${BASE}/tags`);
   if (!res.ok) throw new Error("Failed to fetch tags");
   return res.json();
 }
 
 export async function createTag(data: TagCreate): Promise<Tag> {
-  const res = await fetch(`${BASE}/tags`, {
+  const res = await authFetch(`${BASE}/tags`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -93,7 +113,7 @@ export async function createTag(data: TagCreate): Promise<Tag> {
 }
 
 export async function updateTag(id: number, data: TagCreate): Promise<Tag> {
-  const res = await fetch(`${BASE}/tags/${id}`, {
+  const res = await authFetch(`${BASE}/tags/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -103,12 +123,12 @@ export async function updateTag(id: number, data: TagCreate): Promise<Tag> {
 }
 
 export async function deleteTag(id: number): Promise<void> {
-  const res = await fetch(`${BASE}/tags/${id}`, { method: "DELETE" });
+  const res = await authFetch(`${BASE}/tags/${id}`, { method: "DELETE" });
   if (!res.ok) throw new Error("Failed to delete tag");
 }
 
 export async function fetchSuggestions(): Promise<string> {
-  const res = await fetch(`${BASE}/suggestions`);
+  const res = await authFetch(`${BASE}/suggestions`);
   if (!res.ok) throw new Error("Failed to fetch suggestions");
   const data = await res.json();
   return data.suggestion;

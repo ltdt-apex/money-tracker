@@ -3,11 +3,12 @@ from pathlib import Path
 
 import anthropic
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 
 load_dotenv()
 from fastapi.middleware.cors import CORSMiddleware
 
+from auth import get_current_user_id
 from database import get_connection, init_db
 from models import ALL_SUBCATEGORIES, CATEGORIES, SUB_TO_CAT, Expense, ExpenseCreate, Tag, TagCreate
 
@@ -54,10 +55,11 @@ def _row_to_expense(conn, row) -> Expense:
 
 
 @app.get("/api/expenses", response_model=list[Expense])
-def list_expenses() -> list[Expense]:
+def list_expenses(user_id: str = Depends(get_current_user_id)) -> list[Expense]:
     conn = get_connection()
     rows = conn.execute(
-        "SELECT * FROM expenses WHERE user_id = 1 ORDER BY date DESC, id DESC"
+        "SELECT * FROM expenses WHERE clerk_user_id = ? ORDER BY date DESC, id DESC",
+        (user_id,)
     ).fetchall()
     expenses = [_row_to_expense(conn, r) for r in rows]
     conn.close()
@@ -70,14 +72,14 @@ def list_categories() -> dict[str, dict]:
 
 
 @app.post("/api/expenses", response_model=Expense, status_code=201)
-def create_expense(data: ExpenseCreate) -> Expense:
+def create_expense(data: ExpenseCreate, user_id: str = Depends(get_current_user_id)) -> Expense:
     if data.subcategory not in ALL_SUBCATEGORIES:
         raise HTTPException(status_code=400, detail="Invalid subcategory")
     category = SUB_TO_CAT[data.subcategory]
     conn = get_connection()
     cursor = conn.execute(
-        "INSERT INTO expenses (user_id, title, amount, category, subcategory, date) VALUES (1, ?, ?, ?, ?, ?)",
-        (data.title, data.amount, category, data.subcategory, data.date),
+        "INSERT INTO expenses (clerk_user_id, title, amount, category, subcategory, date) VALUES (?, ?, ?, ?, ?, ?)",
+        (user_id, data.title, data.amount, category, data.subcategory, data.date),
     )
     _sync_expense_tags(conn, cursor.lastrowid, data.tag_ids)
     conn.commit()
@@ -90,14 +92,14 @@ def create_expense(data: ExpenseCreate) -> Expense:
 
 
 @app.put("/api/expenses/{expense_id}", response_model=Expense)
-def update_expense(expense_id: int, data: ExpenseCreate) -> Expense:
+def update_expense(expense_id: int, data: ExpenseCreate, user_id: str = Depends(get_current_user_id)) -> Expense:
     if data.subcategory not in ALL_SUBCATEGORIES:
         raise HTTPException(status_code=400, detail="Invalid subcategory")
     category = SUB_TO_CAT[data.subcategory]
     conn = get_connection()
     result = conn.execute(
-        "UPDATE expenses SET title = ?, amount = ?, category = ?, subcategory = ?, date = ? WHERE id = ? AND user_id = 1",
-        (data.title, data.amount, category, data.subcategory, data.date, expense_id),
+        "UPDATE expenses SET title = ?, amount = ?, category = ?, subcategory = ?, date = ? WHERE id = ? AND clerk_user_id = ?",
+        (data.title, data.amount, category, data.subcategory, data.date, expense_id, user_id),
     )
     if result.rowcount == 0:
         conn.close()
@@ -111,7 +113,7 @@ def update_expense(expense_id: int, data: ExpenseCreate) -> Expense:
 
 
 @app.get("/api/suggestions")
-def get_suggestions() -> dict:
+def get_suggestions(user_id: str = Depends(get_current_user_id)) -> dict:
     from datetime import date
 
     api_key = os.environ.get("ANTHROPIC_API_KEY")
@@ -124,8 +126,8 @@ def get_suggestions() -> dict:
 
     conn = get_connection()
     rows = conn.execute(
-        "SELECT category, subcategory, amount FROM expenses WHERE user_id = 1 AND date >= ? AND date <= ?",
-        (month_start, month_end),
+        "SELECT category, subcategory, amount FROM expenses WHERE clerk_user_id = ? AND date >= ? AND date <= ?",
+        (user_id, month_start, month_end),
     ).fetchall()
     conn.close()
 
@@ -179,10 +181,10 @@ def get_suggestions() -> dict:
 
 
 @app.delete("/api/expenses/{expense_id}", status_code=204)
-def delete_expense(expense_id: int) -> None:
+def delete_expense(expense_id: int, user_id: str = Depends(get_current_user_id)) -> None:
     conn = get_connection()
     result = conn.execute(
-        "DELETE FROM expenses WHERE id = ? AND user_id = 1", (expense_id,)
+        "DELETE FROM expenses WHERE id = ? AND clerk_user_id = ?", (expense_id, user_id)
     )
     conn.commit()
     if result.rowcount == 0:
@@ -194,22 +196,23 @@ def delete_expense(expense_id: int) -> None:
 # --- Tag CRUD ---
 
 @app.get("/api/tags", response_model=list[Tag])
-def list_tags() -> list[Tag]:
+def list_tags(user_id: str = Depends(get_current_user_id)) -> list[Tag]:
     conn = get_connection()
     rows = conn.execute(
-        "SELECT id, user_id, name, color FROM tags WHERE user_id = 1 ORDER BY name"
+        "SELECT id, user_id, name, color FROM tags WHERE clerk_user_id = ? ORDER BY name",
+        (user_id,)
     ).fetchall()
     conn.close()
     return [Tag(**dict(r)) for r in rows]
 
 
 @app.post("/api/tags", response_model=Tag, status_code=201)
-def create_tag(data: TagCreate) -> Tag:
+def create_tag(data: TagCreate, user_id: str = Depends(get_current_user_id)) -> Tag:
     conn = get_connection()
     try:
         cursor = conn.execute(
-            "INSERT INTO tags (user_id, name, color) VALUES (1, ?, ?)",
-            (data.name.strip(), data.color),
+            "INSERT INTO tags (clerk_user_id, name, color) VALUES (?, ?, ?)",
+            (user_id, data.name.strip(), data.color),
         )
         conn.commit()
     except Exception:
@@ -223,11 +226,11 @@ def create_tag(data: TagCreate) -> Tag:
 
 
 @app.put("/api/tags/{tag_id}", response_model=Tag)
-def update_tag(tag_id: int, data: TagCreate) -> Tag:
+def update_tag(tag_id: int, data: TagCreate, user_id: str = Depends(get_current_user_id)) -> Tag:
     conn = get_connection()
     result = conn.execute(
-        "UPDATE tags SET name = ?, color = ? WHERE id = ? AND user_id = 1",
-        (data.name.strip(), data.color, tag_id),
+        "UPDATE tags SET name = ?, color = ? WHERE id = ? AND clerk_user_id = ?",
+        (data.name.strip(), data.color, tag_id, user_id),
     )
     conn.commit()
     if result.rowcount == 0:
@@ -241,10 +244,10 @@ def update_tag(tag_id: int, data: TagCreate) -> Tag:
 
 
 @app.delete("/api/tags/{tag_id}", status_code=204)
-def delete_tag(tag_id: int) -> None:
+def delete_tag(tag_id: int, user_id: str = Depends(get_current_user_id)) -> None:
     conn = get_connection()
     result = conn.execute(
-        "DELETE FROM tags WHERE id = ? AND user_id = 1", (tag_id,)
+        "DELETE FROM tags WHERE id = ? AND clerk_user_id = ?", (tag_id, user_id)
     )
     conn.commit()
     if result.rowcount == 0:

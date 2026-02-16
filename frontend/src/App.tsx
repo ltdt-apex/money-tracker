@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { fetchExpenses, fetchCategories, fetchTags, createExpense, updateExpense, deleteExpense, createTag, buildEmojiMap } from "./api";
+import { SignedIn, SignedOut, RedirectToSignIn, UserButton, useAuth } from "@clerk/clerk-react";
+import { fetchExpenses, fetchCategories, fetchTags, createExpense, updateExpense, deleteExpense, createTag, buildEmojiMap, setAuthTokenGetter } from "./api";
 import type { Categories, Expense, ExpenseCreate, Tag, TagCreate } from "./api";
 import { Receipt, ChartPie, Lightbulb } from "lucide-react";
 import ExpenseForm from "./components/ExpenseForm";
@@ -14,7 +15,8 @@ function formatCurrency(n: number): string {
   }).format(n);
 }
 
-export default function App() {
+function AppContent() {
+  const { getToken } = useAuth();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [categories, setCategories] = useState<Categories>({});
   const [tags, setTags] = useState<Tag[]>([]);
@@ -23,6 +25,10 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<"expenses" | "stats" | "suggestions">("expenses");
 
   const emojiMap = useMemo(() => buildEmojiMap(categories), [categories]);
+
+  useEffect(() => {
+    setAuthTokenGetter(getToken);
+  }, [getToken]);
 
   const { income, spent, balance } = useMemo(() => {
     let income = 0;
@@ -101,6 +107,7 @@ export default function App() {
     <div className="app">
       <header className="app-header">
         <h1>Money Tracker</h1>
+        <UserButton afterSignOutUrl="/" />
       </header>
       <main className="container">
         <div className="group-header">
@@ -183,5 +190,18 @@ export default function App() {
         {activeTab === "suggestions" && <Suggestions />}
       </main>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <>
+      <SignedOut>
+        <RedirectToSignIn />
+      </SignedOut>
+      <SignedIn>
+        <AppContent />
+      </SignedIn>
+    </>
   );
 }
