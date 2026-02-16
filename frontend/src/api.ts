@@ -59,14 +59,80 @@ export interface ExpenseCreate {
   tag_ids: number[];
 }
 
-export async function fetchExpenses(): Promise<Expense[]> {
-  const res = await authFetch(`${BASE}/expenses`);
+export interface Profile {
+  id: number;
+  clerk_user_id: string;
+  name: string;
+  emoji: string;
+  created_at: string;
+}
+
+export interface ProfileSummary extends Profile {
+  income: number;
+  expenses: number;
+  balance: number;
+}
+
+export interface ProfileCreate {
+  name: string;
+  emoji: string;
+}
+
+// --- Profile API ---
+
+export async function fetchProfiles(): Promise<ProfileSummary[]> {
+  const res = await authFetch(`${BASE}/profiles`);
+  if (!res.ok) throw new Error("Failed to fetch profiles");
+  return res.json();
+}
+
+export async function createProfile(data: ProfileCreate): Promise<Profile> {
+  const res = await authFetch(`${BASE}/profiles`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error("Failed to create profile");
+  return res.json();
+}
+
+export async function updateProfile(id: number, data: ProfileCreate): Promise<Profile> {
+  const res = await authFetch(`${BASE}/profiles/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error("Failed to update profile");
+  return res.json();
+}
+
+export async function deleteProfile(id: number): Promise<void> {
+  const res = await authFetch(`${BASE}/profiles/${id}`, { method: "DELETE" });
+  if (!res.ok) throw new Error("Failed to delete profile");
+}
+
+export async function migrateLegacyData(): Promise<Profile> {
+  const res = await authFetch(`${BASE}/profiles/migrate-legacy`, { method: "POST" });
+  if (!res.ok) throw new Error("Failed to migrate legacy data");
+  return res.json();
+}
+
+// --- Expense API ---
+
+function profileParam(profileId: number | null, hasExisting?: boolean): string {
+  if (profileId === null) return "";
+  const sep = hasExisting ? "&" : "?";
+  return `${sep}profile_id=${profileId}`;
+}
+
+export async function fetchExpenses(profileId: number | null): Promise<Expense[]> {
+  const res = await authFetch(`${BASE}/expenses${profileParam(profileId, false)}`);
   if (!res.ok) throw new Error("Failed to fetch expenses");
   return res.json();
 }
 
-export async function createExpense(data: ExpenseCreate): Promise<Expense> {
-  const res = await authFetch(`${BASE}/expenses`, {
+export async function createExpense(profileId: number | null, data: ExpenseCreate): Promise<Expense> {
+  const res = await authFetch(`${BASE}/expenses${profileParam(profileId, false)}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -96,14 +162,16 @@ export async function fetchCategories(): Promise<Categories> {
   return res.json();
 }
 
-export async function fetchTags(): Promise<Tag[]> {
-  const res = await authFetch(`${BASE}/tags`);
+// --- Tag API ---
+
+export async function fetchTags(profileId: number | null): Promise<Tag[]> {
+  const res = await authFetch(`${BASE}/tags${profileParam(profileId, false)}`);
   if (!res.ok) throw new Error("Failed to fetch tags");
   return res.json();
 }
 
-export async function createTag(data: TagCreate): Promise<Tag> {
-  const res = await authFetch(`${BASE}/tags`, {
+export async function createTag(profileId: number | null, data: TagCreate): Promise<Tag> {
+  const res = await authFetch(`${BASE}/tags${profileParam(profileId, false)}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -127,8 +195,10 @@ export async function deleteTag(id: number): Promise<void> {
   if (!res.ok) throw new Error("Failed to delete tag");
 }
 
-export async function fetchSuggestions(): Promise<string> {
-  const res = await authFetch(`${BASE}/suggestions`);
+// --- Suggestions API ---
+
+export async function fetchSuggestions(profileId: number | null): Promise<string> {
+  const res = await authFetch(`${BASE}/suggestions${profileParam(profileId, false)}`);
   if (!res.ok) throw new Error("Failed to fetch suggestions");
   const data = await res.json();
   return data.suggestion;

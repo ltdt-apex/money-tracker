@@ -78,5 +78,27 @@ def init_db() -> None:
         conn.execute("DROP TABLE tags_old")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_tags_clerk_user ON tags(clerk_user_id)")
 
+    # Profiles table
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS profiles (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            clerk_user_id TEXT NOT NULL,
+            name TEXT NOT NULL,
+            emoji TEXT NOT NULL DEFAULT '💰',
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            UNIQUE(clerk_user_id, name)
+        )
+    """)
+
+    # Migration: add profile_id to expenses
+    if "profile_id" not in cols:
+        conn.execute("ALTER TABLE expenses ADD COLUMN profile_id INTEGER REFERENCES profiles(id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_expenses_profile ON expenses(profile_id)")
+
+    # Migration: add profile_id to tags
+    if "profile_id" not in tag_cols:
+        conn.execute("ALTER TABLE tags ADD COLUMN profile_id INTEGER REFERENCES profiles(id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_tags_profile ON tags(profile_id)")
+
     conn.commit()
     conn.close()

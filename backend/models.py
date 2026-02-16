@@ -117,6 +117,30 @@ for cat_name, cat_data in CATEGORIES.items():
 ALL_SUBCATEGORIES: set[str] = set(SUB_TO_CAT.keys())
 
 
+class ProfileCreate(BaseModel):
+    name: str
+    emoji: str = "💰"
+
+
+class Profile(BaseModel):
+    id: int
+    clerk_user_id: str
+    name: str
+    emoji: str
+    created_at: str
+
+
+class ProfileSummary(BaseModel):
+    id: int
+    clerk_user_id: str
+    name: str
+    emoji: str
+    created_at: str
+    income: float = 0.0
+    expenses: float = 0.0
+    balance: float = 0.0
+
+
 class TagCreate(BaseModel):
     name: str
     color: str

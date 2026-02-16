@@ -1,16 +1,28 @@
 import os
 from pathlib import Path
+from typing import Optional
 
 import anthropic
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Query
 
 load_dotenv()
 from fastapi.middleware.cors import CORSMiddleware
 
 from auth import get_current_user_id
 from database import get_connection, init_db
-from models import ALL_SUBCATEGORIES, CATEGORIES, SUB_TO_CAT, Expense, ExpenseCreate, Tag, TagCreate
+from models import (
+    ALL_SUBCATEGORIES,
+    CATEGORIES,
+    SUB_TO_CAT,
+    Expense,
+    ExpenseCreate,
+    Profile,
+    ProfileCreate,
+    ProfileSummary,
+    Tag,
+    TagCreate,
+)
 
 PROMPTS_DIR = Path(__file__).parent / "prompts"
 
@@ -28,6 +40,119 @@ app.add_middleware(
 def startup() -> None:
     init_db()
 
+
+# --- Profile CRUD ---
+
+@app.get("/api/profiles", response_model=list[ProfileSummary])
+def list_profiles(user_id: str = Depends(get_current_user_id)) -> list[ProfileSummary]:
+    conn = get_connection()
+    profiles = conn.execute(
+        "SELECT * FROM profiles WHERE clerk_user_id = ? ORDER BY created_at",
+        (user_id,),
+    ).fetchall()
+    result = []
+    for p in profiles:
+        pd = dict(p)
+        rows = conn.execute(
+            "SELECT category, amount FROM expenses WHERE clerk_user_id = ? AND profile_id = ?",
+            (user_id, pd["id"]),
+        ).fetchall()
+        income = sum(r["amount"] for r in rows if r["category"] == "Income")
+        expenses = sum(r["amount"] for r in rows if r["category"] != "Income")
+        result.append(ProfileSummary(**pd, income=income, expenses=expenses, balance=income - expenses))
+    conn.close()
+    return result
+
+
+@app.post("/api/profiles", response_model=Profile, status_code=201)
+def create_profile(data: ProfileCreate, user_id: str = Depends(get_current_user_id)) -> Profile:
+    conn = get_connection()
+    try:
+        cursor = conn.execute(
+            "INSERT INTO profiles (clerk_user_id, name, emoji) VALUES (?, ?, ?)",
+            (user_id, data.name.strip(), data.emoji),
+        )
+        conn.commit()
+    except Exception:
+        conn.close()
+        raise HTTPException(status_code=409, detail="Profile name already exists")
+    row = conn.execute("SELECT * FROM profiles WHERE id = ?", (cursor.lastrowid,)).fetchone()
+    conn.close()
+    return Profile(**dict(row))
+
+
+@app.put("/api/profiles/{profile_id}", response_model=Profile)
+def update_profile(profile_id: int, data: ProfileCreate, user_id: str = Depends(get_current_user_id)) -> Profile:
+    conn = get_connection()
+    result = conn.execute(
+        "UPDATE profiles SET name = ?, emoji = ? WHERE id = ? AND clerk_user_id = ?",
+        (data.name.strip(), data.emoji, profile_id, user_id),
+    )
+    conn.commit()
+    if result.rowcount == 0:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Profile not found")
+    row = conn.execute("SELECT * FROM profiles WHERE id = ?", (profile_id,)).fetchone()
+    conn.close()
+    return Profile(**dict(row))
+
+
+@app.delete("/api/profiles/{profile_id}", status_code=204)
+def delete_profile(profile_id: int, user_id: str = Depends(get_current_user_id)) -> None:
+    conn = get_connection()
+    # Clear profile_id from associated expenses and tags (don't delete them)
+    conn.execute(
+        "UPDATE expenses SET profile_id = NULL WHERE profile_id = ? AND clerk_user_id = ?",
+        (profile_id, user_id),
+    )
+    conn.execute(
+        "UPDATE tags SET profile_id = NULL WHERE profile_id = ? AND clerk_user_id = ?",
+        (profile_id, user_id),
+    )
+    result = conn.execute(
+        "DELETE FROM profiles WHERE id = ? AND clerk_user_id = ?", (profile_id, user_id)
+    )
+    conn.commit()
+    if result.rowcount == 0:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Profile not found")
+    conn.close()
+
+
+@app.post("/api/profiles/migrate-legacy", response_model=Profile)
+def migrate_legacy(user_id: str = Depends(get_current_user_id)) -> Profile:
+    conn = get_connection()
+    # Create default "Personal" profile
+    existing = conn.execute(
+        "SELECT * FROM profiles WHERE clerk_user_id = ? AND name = 'Personal'",
+        (user_id,),
+    ).fetchone()
+    if existing:
+        profile = Profile(**dict(existing))
+    else:
+        cursor = conn.execute(
+            "INSERT INTO profiles (clerk_user_id, name, emoji) VALUES (?, 'Personal', '💰')",
+            (user_id,),
+        )
+        conn.commit()
+        row = conn.execute("SELECT * FROM profiles WHERE id = ?", (cursor.lastrowid,)).fetchone()
+        profile = Profile(**dict(row))
+
+    # Assign orphaned expenses and tags to this profile
+    conn.execute(
+        "UPDATE expenses SET profile_id = ? WHERE clerk_user_id = ? AND profile_id IS NULL",
+        (profile.id, user_id),
+    )
+    conn.execute(
+        "UPDATE tags SET profile_id = ? WHERE clerk_user_id = ? AND profile_id IS NULL",
+        (profile.id, user_id),
+    )
+    conn.commit()
+    conn.close()
+    return profile
+
+
+# --- Helpers ---
 
 def _get_tags_for_expense(conn, expense_id: int) -> list[Tag]:
     rows = conn.execute(
@@ -54,13 +179,24 @@ def _row_to_expense(conn, row) -> Expense:
     return Expense(**d, tags=tags)
 
 
+# --- Expense CRUD ---
+
 @app.get("/api/expenses", response_model=list[Expense])
-def list_expenses(user_id: str = Depends(get_current_user_id)) -> list[Expense]:
+def list_expenses(
+    profile_id: Optional[int] = Query(None),
+    user_id: str = Depends(get_current_user_id),
+) -> list[Expense]:
     conn = get_connection()
-    rows = conn.execute(
-        "SELECT * FROM expenses WHERE clerk_user_id = ? ORDER BY date DESC, id DESC",
-        (user_id,)
-    ).fetchall()
+    if profile_id is not None:
+        rows = conn.execute(
+            "SELECT * FROM expenses WHERE clerk_user_id = ? AND profile_id = ? ORDER BY date DESC, id DESC",
+            (user_id, profile_id),
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT * FROM expenses WHERE clerk_user_id = ? ORDER BY date DESC, id DESC",
+            (user_id,),
+        ).fetchall()
     expenses = [_row_to_expense(conn, r) for r in rows]
     conn.close()
     return expenses
@@ -72,14 +208,18 @@ def list_categories() -> dict[str, dict]:
 
 
 @app.post("/api/expenses", response_model=Expense, status_code=201)
-def create_expense(data: ExpenseCreate, user_id: str = Depends(get_current_user_id)) -> Expense:
+def create_expense(
+    data: ExpenseCreate,
+    profile_id: Optional[int] = Query(None),
+    user_id: str = Depends(get_current_user_id),
+) -> Expense:
     if data.subcategory not in ALL_SUBCATEGORIES:
         raise HTTPException(status_code=400, detail="Invalid subcategory")
     category = SUB_TO_CAT[data.subcategory]
     conn = get_connection()
     cursor = conn.execute(
-        "INSERT INTO expenses (clerk_user_id, title, amount, category, subcategory, date) VALUES (?, ?, ?, ?, ?, ?)",
-        (user_id, data.title, data.amount, category, data.subcategory, data.date),
+        "INSERT INTO expenses (clerk_user_id, title, amount, category, subcategory, date, profile_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (user_id, data.title, data.amount, category, data.subcategory, data.date, profile_id),
     )
     _sync_expense_tags(conn, cursor.lastrowid, data.tag_ids)
     conn.commit()
@@ -113,7 +253,10 @@ def update_expense(expense_id: int, data: ExpenseCreate, user_id: str = Depends(
 
 
 @app.get("/api/suggestions")
-def get_suggestions(user_id: str = Depends(get_current_user_id)) -> dict:
+def get_suggestions(
+    profile_id: Optional[int] = Query(None),
+    user_id: str = Depends(get_current_user_id),
+) -> dict:
     from datetime import date
 
     api_key = os.environ.get("ANTHROPIC_API_KEY")
@@ -125,10 +268,16 @@ def get_suggestions(user_id: str = Depends(get_current_user_id)) -> dict:
     month_end = today.isoformat()
 
     conn = get_connection()
-    rows = conn.execute(
-        "SELECT category, subcategory, amount FROM expenses WHERE clerk_user_id = ? AND date >= ? AND date <= ?",
-        (user_id, month_start, month_end),
-    ).fetchall()
+    if profile_id is not None:
+        rows = conn.execute(
+            "SELECT category, subcategory, amount FROM expenses WHERE clerk_user_id = ? AND profile_id = ? AND date >= ? AND date <= ?",
+            (user_id, profile_id, month_start, month_end),
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT category, subcategory, amount FROM expenses WHERE clerk_user_id = ? AND date >= ? AND date <= ?",
+            (user_id, month_start, month_end),
+        ).fetchall()
     conn.close()
 
     total_income = 0.0
@@ -196,23 +345,36 @@ def delete_expense(expense_id: int, user_id: str = Depends(get_current_user_id))
 # --- Tag CRUD ---
 
 @app.get("/api/tags", response_model=list[Tag])
-def list_tags(user_id: str = Depends(get_current_user_id)) -> list[Tag]:
+def list_tags(
+    profile_id: Optional[int] = Query(None),
+    user_id: str = Depends(get_current_user_id),
+) -> list[Tag]:
     conn = get_connection()
-    rows = conn.execute(
-        "SELECT id, user_id, name, color FROM tags WHERE clerk_user_id = ? ORDER BY name",
-        (user_id,)
-    ).fetchall()
+    if profile_id is not None:
+        rows = conn.execute(
+            "SELECT id, user_id, name, color FROM tags WHERE clerk_user_id = ? AND profile_id = ? ORDER BY name",
+            (user_id, profile_id),
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT id, user_id, name, color FROM tags WHERE clerk_user_id = ? ORDER BY name",
+            (user_id,),
+        ).fetchall()
     conn.close()
     return [Tag(**dict(r)) for r in rows]
 
 
 @app.post("/api/tags", response_model=Tag, status_code=201)
-def create_tag(data: TagCreate, user_id: str = Depends(get_current_user_id)) -> Tag:
+def create_tag(
+    data: TagCreate,
+    profile_id: Optional[int] = Query(None),
+    user_id: str = Depends(get_current_user_id),
+) -> Tag:
     conn = get_connection()
     try:
         cursor = conn.execute(
-            "INSERT INTO tags (clerk_user_id, name, color) VALUES (?, ?, ?)",
-            (user_id, data.name.strip(), data.color),
+            "INSERT INTO tags (clerk_user_id, name, color, profile_id) VALUES (?, ?, ?, ?)",
+            (user_id, data.name.strip(), data.color, profile_id),
         )
         conn.commit()
     except Exception:

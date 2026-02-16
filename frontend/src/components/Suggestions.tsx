@@ -3,7 +3,11 @@ import ReactMarkdown from "react-markdown";
 import { fetchSuggestions } from "../api";
 import { Lightbulb, RefreshCw } from "lucide-react";
 
-export default function Suggestions() {
+interface SuggestionsProps {
+  profileId: number | null;
+}
+
+export default function Suggestions({ profileId }: SuggestionsProps) {
   const [suggestion, setSuggestion] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -12,7 +16,7 @@ export default function Suggestions() {
     setLoading(true);
     setError(null);
     try {
-      const text = await fetchSuggestions();
+      const text = await fetchSuggestions(profileId);
       setSuggestion(text);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to get suggestions");
