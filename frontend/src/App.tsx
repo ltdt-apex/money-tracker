@@ -2,12 +2,16 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { SignedIn, SignedOut, RedirectToSignIn, UserButton, useAuth } from "@clerk/clerk-react";
 import {
   fetchExpenses, fetchCategories, fetchTags, fetchProfiles,
-  createExpense, updateExpense, deleteExpense, createTag,
-  createProfile, deleteProfile, migrateLegacyData,
+  createExpense, updateExpense, deleteExpense, createTag, updateTag, deleteTag,
+  createProfile, deleteProfile, migrateLegacyData, updateProfileSettings,
+  fetchCustomSubcategories, createCustomSubcategory, deleteCustomSubcategory,
   buildEmojiMap, setAuthTokenGetter,
 } from "./api";
-import type { Categories, Expense, ExpenseCreate, Tag, TagCreate, ProfileSummary } from "./api";
-import { Receipt, ChartPie, Lightbulb, Menu, Trash2 } from "lucide-react";
+import type {
+  Categories, Expense, ExpenseCreate, Tag, TagCreate, ProfileSummary, ProfileSettings,
+  CustomSubcategory, CustomSubcategoryCreate,
+} from "./api";
+import { Receipt, ChartPie, Lightbulb, Settings, Menu, Trash2 } from "lucide-react";
 import ExpenseForm from "./components/ExpenseForm";
 import ExpenseTimeline from "./components/ExpenseTimeline";
 import ExpenseStats from "./components/ExpenseStats";
@@ -15,6 +19,7 @@ import Suggestions from "./components/Suggestions";
 import Sidebar from "./components/Sidebar";
 import HomeView from "./components/HomeView";
 import ProfileForm from "./components/ProfileForm";
+import SettingsTab from "./components/SettingsTab";
 
 function formatCurrency(n: number): string {
   return new Intl.NumberFormat("en-US", {
@@ -26,11 +31,12 @@ function formatCurrency(n: number): string {
 function AppContent() {
   const { getToken } = useAuth();
   const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [categories, setCategories] = useState<Categories>({});
+  const [allCategories, setAllCategories] = useState<Categories>({});
   const [tags, setTags] = useState<Tag[]>([]);
+  const [customSubcategories, setCustomSubcategories] = useState<CustomSubcategory[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Expense | null>(null);
-  const [activeTab, setActiveTab] = useState<"expenses" | "stats" | "suggestions">("expenses");
+  const [activeTab, setActiveTab] = useState<"expenses" | "stats" | "suggestions" | "settings">("expenses");
 
   // Profile state
   const [profiles, setProfiles] = useState<ProfileSummary[]>([]);
@@ -39,7 +45,25 @@ function AppContent() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profilesLoaded, setProfilesLoaded] = useState(false);
 
-  const emojiMap = useMemo(() => buildEmojiMap(categories), [categories]);
+  const activeProfile = profiles.find((p) => p.id === activeProfileId);
+  const emojiMap = useMemo(() => buildEmojiMap(allCategories), [allCategories]);
+
+  const filteredCategories = useMemo(() => {
+    if (!activeProfile) return allCategories;
+    const disabled = new Set(activeProfile.disabled_subcategories);
+    if (disabled.size === 0) return allCategories;
+    const result: Categories = {};
+    for (const [catName, catData] of Object.entries(allCategories)) {
+      const filteredSubs: Record<string, string> = {};
+      for (const [subName, subEmoji] of Object.entries(catData.subcategories)) {
+        if (!disabled.has(subName)) filteredSubs[subName] = subEmoji;
+      }
+      if (Object.keys(filteredSubs).length > 0) {
+        result[catName] = { ...catData, subcategories: filteredSubs };
+      }
+    }
+    return result;
+  }, [allCategories, activeProfile]);
 
   useEffect(() => {
     setAuthTokenGetter(getToken);
@@ -73,7 +97,7 @@ function AppContent() {
         setProfilesLoaded(true);
       })
       .catch(console.error);
-    fetchCategories().then(setCategories).catch(console.error);
+    fetchCategories().then(setAllCategories).catch(console.error);
   }, []);
 
   // Load profile-scoped data when activeProfileId changes
@@ -81,6 +105,13 @@ function AppContent() {
     if (!profilesLoaded) return;
     fetchExpenses(activeProfileId).then(setExpenses).catch(console.error);
     fetchTags(activeProfileId).then(setTags).catch(console.error);
+    // Fetch categories merged with custom subcategories for this profile
+    fetchCategories(activeProfileId).then(setAllCategories).catch(console.error);
+    if (activeProfileId !== null) {
+      fetchCustomSubcategories(activeProfileId).then(setCustomSubcategories).catch(console.error);
+    } else {
+      setCustomSubcategories([]);
+    }
   }, [activeProfileId, profilesLoaded]);
 
   function openNew() {
@@ -139,6 +170,40 @@ function AppContent() {
     if (newProfile) setActiveProfileId(newProfile.id);
   }
 
+  async function handleCreateCustomSub(data: CustomSubcategoryCreate) {
+    if (activeProfileId === null) return;
+    const created = await createCustomSubcategory(activeProfileId, data);
+    setCustomSubcategories((prev) => [...prev, created]);
+    // Refresh merged categories
+    fetchCategories(activeProfileId).then(setAllCategories).catch(console.error);
+  }
+
+  async function handleDeleteCustomSub(id: number) {
+    await deleteCustomSubcategory(id);
+    setCustomSubcategories((prev) => prev.filter((s) => s.id !== id));
+    // Refresh merged categories
+    if (activeProfileId !== null) {
+      fetchCategories(activeProfileId).then(setAllCategories).catch(console.error);
+    }
+  }
+
+  async function handleUpdateSettings(settings: ProfileSettings) {
+    if (activeProfileId === null) return;
+    await updateProfileSettings(activeProfileId, settings);
+    const ps = await fetchProfiles();
+    setProfiles(ps);
+  }
+
+  async function handleUpdateTag(id: number, data: TagCreate) {
+    const updated = await updateTag(id, data);
+    setTags((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+  }
+
+  async function handleDeleteTag(id: number) {
+    await deleteTag(id);
+    setTags((prev) => prev.filter((t) => t.id !== id));
+  }
+
   async function handleDeleteProfile(id: number) {
     await deleteProfile(id);
     const ps = await fetchProfiles();
@@ -161,8 +226,6 @@ function AppContent() {
       }
     });
   }, []);
-
-  const activeProfile = profiles.find((p) => p.id === activeProfileId);
 
   return (
     <div className="app">
@@ -256,6 +319,12 @@ function AppContent() {
                   >
                     <Lightbulb size={16} /> Suggestions
                   </button>
+                  {/* <button
+                    className={`tab${activeTab === "settings" ? " tab-active" : ""}`}
+                    onClick={() => setActiveTab("settings")}
+                  >
+                    <Settings size={16} /> Settings
+                  </button> */}
                 </nav>
 
                 {showForm && (
@@ -269,7 +338,7 @@ function AppContent() {
                       </div>
                       <ExpenseForm
                         key={editing?.id ?? "new"}
-                        categories={categories}
+                        categories={filteredCategories}
                         tags={tags}
                         editing={editing ?? undefined}
                         onSubmit={handleSubmit}
@@ -285,10 +354,25 @@ function AppContent() {
                 )}
 
                 {activeTab === "stats" && (
-                  <ExpenseStats expenses={expenses} categories={categories} onDateClick={handleDateClick} />
+                  <ExpenseStats expenses={expenses} categories={allCategories} onDateClick={handleDateClick} />
                 )}
 
                 {activeTab === "suggestions" && <Suggestions profileId={activeProfileId} />}
+
+                {activeTab === "settings" && (
+                  <SettingsTab
+                    categories={allCategories}
+                    disabledSubcategories={activeProfile?.disabled_subcategories ?? []}
+                    tags={tags}
+                    customSubcategories={customSubcategories}
+                    onUpdateSettings={handleUpdateSettings}
+                    onUpdateTag={handleUpdateTag}
+                    onDeleteTag={handleDeleteTag}
+                    onCreateTag={handleCreateTag}
+                    onCreateCustomSub={handleCreateCustomSub}
+                    onDeleteCustomSub={handleDeleteCustomSub}
+                  />
+                )}
               </>
             )}
           </div>

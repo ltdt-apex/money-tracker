@@ -65,6 +65,7 @@ export interface Profile {
   name: string;
   emoji: string;
   created_at: string;
+  disabled_subcategories: string[];
 }
 
 export interface ProfileSummary extends Profile {
@@ -76,6 +77,10 @@ export interface ProfileSummary extends Profile {
 export interface ProfileCreate {
   name: string;
   emoji: string;
+}
+
+export interface ProfileSettings {
+  disabled_subcategories: string[];
 }
 
 // --- Profile API ---
@@ -109,6 +114,16 @@ export async function updateProfile(id: number, data: ProfileCreate): Promise<Pr
 export async function deleteProfile(id: number): Promise<void> {
   const res = await authFetch(`${BASE}/profiles/${id}`, { method: "DELETE" });
   if (!res.ok) throw new Error("Failed to delete profile");
+}
+
+export async function updateProfileSettings(id: number, data: ProfileSettings): Promise<Profile> {
+  const res = await authFetch(`${BASE}/profiles/${id}/settings`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error("Failed to update profile settings");
+  return res.json();
 }
 
 export async function migrateLegacyData(): Promise<Profile> {
@@ -156,10 +171,49 @@ export async function deleteExpense(id: number): Promise<void> {
   if (!res.ok) throw new Error("Failed to delete expense");
 }
 
-export async function fetchCategories(): Promise<Categories> {
-  const res = await fetch(`${BASE}/categories`);
+export async function fetchCategories(profileId: number | null = null): Promise<Categories> {
+  const res = await authFetch(`${BASE}/categories${profileParam(profileId, false)}`);
   if (!res.ok) throw new Error("Failed to fetch categories");
   return res.json();
+}
+
+// --- Custom Subcategory API ---
+
+export interface CustomSubcategory {
+  id: number;
+  clerk_user_id: string;
+  profile_id: number;
+  category: string;
+  subcategory: string;
+  emoji: string;
+  created_at: string;
+}
+
+export interface CustomSubcategoryCreate {
+  category: string;
+  subcategory: string;
+  emoji: string;
+}
+
+export async function fetchCustomSubcategories(profileId: number): Promise<CustomSubcategory[]> {
+  const res = await authFetch(`${BASE}/custom-subcategories?profile_id=${profileId}`);
+  if (!res.ok) throw new Error("Failed to fetch custom subcategories");
+  return res.json();
+}
+
+export async function createCustomSubcategory(profileId: number, data: CustomSubcategoryCreate): Promise<CustomSubcategory> {
+  const res = await authFetch(`${BASE}/custom-subcategories?profile_id=${profileId}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error("Failed to create custom subcategory");
+  return res.json();
+}
+
+export async function deleteCustomSubcategory(id: number): Promise<void> {
+  const res = await authFetch(`${BASE}/custom-subcategories/${id}`, { method: "DELETE" });
+  if (!res.ok) throw new Error("Failed to delete custom subcategory");
 }
 
 // --- Tag API ---

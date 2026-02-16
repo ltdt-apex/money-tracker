@@ -100,5 +100,24 @@ def init_db() -> None:
         conn.execute("ALTER TABLE tags ADD COLUMN profile_id INTEGER REFERENCES profiles(id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_tags_profile ON tags(profile_id)")
 
+    # Migration: add disabled_subcategories to profiles
+    profile_cols = [r[1] for r in conn.execute("PRAGMA table_info(profiles)").fetchall()]
+    if "disabled_subcategories" not in profile_cols:
+        conn.execute("ALTER TABLE profiles ADD COLUMN disabled_subcategories TEXT NOT NULL DEFAULT '[]'")
+
+    # Custom subcategories table
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS custom_subcategories (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            clerk_user_id TEXT NOT NULL,
+            profile_id INTEGER NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+            category TEXT NOT NULL,
+            subcategory TEXT NOT NULL,
+            emoji TEXT NOT NULL DEFAULT '📌',
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            UNIQUE(profile_id, subcategory)
+        )
+    """)
+
     conn.commit()
     conn.close()

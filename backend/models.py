@@ -2,6 +2,15 @@ from pydantic import BaseModel
 
 
 CATEGORIES: dict[str, dict] = {
+    "Income": {
+        "emoji": "💰",
+        "subcategories": {
+            "Salary": "💰",
+            "Freelance": "💵",
+            "Investments": "📈",
+            "Gifts Received": "🎁",
+        },
+    },
     "Food & Drinks": {
         "emoji": "🍔",
         "subcategories": {
@@ -88,15 +97,6 @@ CATEGORIES: dict[str, dict] = {
             "Travel Essentials": "🧳",
         },
     },
-    "Income": {
-        "emoji": "💰",
-        "subcategories": {
-            "Salary": "💰",
-            "Freelance": "💵",
-            "Investments": "📈",
-            "Gifts Received": "🎁",
-        },
-    },
     "Other": {
         "emoji": "📦",
         "subcategories": {
@@ -128,6 +128,7 @@ class Profile(BaseModel):
     name: str
     emoji: str
     created_at: str
+    disabled_subcategories: list[str] = []
 
 
 class ProfileSummary(BaseModel):
@@ -136,9 +137,14 @@ class ProfileSummary(BaseModel):
     name: str
     emoji: str
     created_at: str
+    disabled_subcategories: list[str] = []
     income: float = 0.0
     expenses: float = 0.0
     balance: float = 0.0
+
+
+class ProfileSettings(BaseModel):
+    disabled_subcategories: list[str] = []
 
 
 class TagCreate(BaseModel):
@@ -151,6 +157,22 @@ class Tag(BaseModel):
     user_id: int
     name: str
     color: str
+
+
+class CustomSubcategoryCreate(BaseModel):
+    category: str
+    subcategory: str
+    emoji: str = "📌"
+
+
+class CustomSubcategory(BaseModel):
+    id: int
+    clerk_user_id: str
+    profile_id: int
+    category: str
+    subcategory: str
+    emoji: str
+    created_at: str
 
 
 class ExpenseCreate(BaseModel):

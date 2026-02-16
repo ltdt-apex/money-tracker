@@ -15,10 +15,13 @@ from models import (
     ALL_SUBCATEGORIES,
     CATEGORIES,
     SUB_TO_CAT,
+    CustomSubcategory,
+    CustomSubcategoryCreate,
     Expense,
     ExpenseCreate,
     Profile,
     ProfileCreate,
+    ProfileSettings,
     ProfileSummary,
     Tag,
     TagCreate,
@@ -41,6 +44,17 @@ def startup() -> None:
     init_db()
 
 
+# --- Helpers ---
+
+def _profile_from_row(row) -> dict:
+    """Convert a profile DB row to a dict, parsing the JSON disabled_subcategories column."""
+    import json
+    d = dict(row)
+    raw = d.get("disabled_subcategories", "[]")
+    d["disabled_subcategories"] = json.loads(raw) if isinstance(raw, str) else raw
+    return d
+
+
 # --- Profile CRUD ---
 
 @app.get("/api/profiles", response_model=list[ProfileSummary])
@@ -52,7 +66,7 @@ def list_profiles(user_id: str = Depends(get_current_user_id)) -> list[ProfileSu
     ).fetchall()
     result = []
     for p in profiles:
-        pd = dict(p)
+        pd = _profile_from_row(p)
         rows = conn.execute(
             "SELECT category, amount FROM expenses WHERE clerk_user_id = ? AND profile_id = ?",
             (user_id, pd["id"]),
@@ -78,7 +92,7 @@ def create_profile(data: ProfileCreate, user_id: str = Depends(get_current_user_
         raise HTTPException(status_code=409, detail="Profile name already exists")
     row = conn.execute("SELECT * FROM profiles WHERE id = ?", (cursor.lastrowid,)).fetchone()
     conn.close()
-    return Profile(**dict(row))
+    return Profile(**_profile_from_row(row))
 
 
 @app.put("/api/profiles/{profile_id}", response_model=Profile)
@@ -94,7 +108,7 @@ def update_profile(profile_id: int, data: ProfileCreate, user_id: str = Depends(
         raise HTTPException(status_code=404, detail="Profile not found")
     row = conn.execute("SELECT * FROM profiles WHERE id = ?", (profile_id,)).fetchone()
     conn.close()
-    return Profile(**dict(row))
+    return Profile(**_profile_from_row(row))
 
 
 @app.delete("/api/profiles/{profile_id}", status_code=204)
@@ -119,6 +133,35 @@ def delete_profile(profile_id: int, user_id: str = Depends(get_current_user_id))
     conn.close()
 
 
+@app.put("/api/profiles/{profile_id}/settings", response_model=Profile)
+def update_profile_settings(
+    profile_id: int, data: ProfileSettings, user_id: str = Depends(get_current_user_id)
+) -> Profile:
+    import json
+    conn = get_connection()
+    # Build valid set: built-in + custom for this profile
+    custom_rows = conn.execute(
+        "SELECT subcategory FROM custom_subcategories WHERE clerk_user_id = ? AND profile_id = ?",
+        (user_id, profile_id),
+    ).fetchall()
+    valid = ALL_SUBCATEGORIES | {r["subcategory"] for r in custom_rows}
+    invalid = set(data.disabled_subcategories) - valid
+    if invalid:
+        conn.close()
+        raise HTTPException(status_code=400, detail=f"Invalid subcategories: {', '.join(invalid)}")
+    result = conn.execute(
+        "UPDATE profiles SET disabled_subcategories = ? WHERE id = ? AND clerk_user_id = ?",
+        (json.dumps(data.disabled_subcategories), profile_id, user_id),
+    )
+    conn.commit()
+    if result.rowcount == 0:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Profile not found")
+    row = conn.execute("SELECT * FROM profiles WHERE id = ?", (profile_id,)).fetchone()
+    conn.close()
+    return Profile(**_profile_from_row(row))
+
+
 @app.post("/api/profiles/migrate-legacy", response_model=Profile)
 def migrate_legacy(user_id: str = Depends(get_current_user_id)) -> Profile:
     conn = get_connection()
@@ -128,7 +171,7 @@ def migrate_legacy(user_id: str = Depends(get_current_user_id)) -> Profile:
         (user_id,),
     ).fetchone()
     if existing:
-        profile = Profile(**dict(existing))
+        profile = Profile(**_profile_from_row(existing))
     else:
         cursor = conn.execute(
             "INSERT INTO profiles (clerk_user_id, name, emoji) VALUES (?, 'Personal', '💰')",
@@ -136,7 +179,7 @@ def migrate_legacy(user_id: str = Depends(get_current_user_id)) -> Profile:
         )
         conn.commit()
         row = conn.execute("SELECT * FROM profiles WHERE id = ?", (cursor.lastrowid,)).fetchone()
-        profile = Profile(**dict(row))
+        profile = Profile(**_profile_from_row(row))
 
     # Assign orphaned expenses and tags to this profile
     conn.execute(
@@ -203,8 +246,39 @@ def list_expenses(
 
 
 @app.get("/api/categories")
-def list_categories() -> dict[str, dict]:
-    return CATEGORIES
+def list_categories(
+    profile_id: Optional[int] = Query(None),
+    user_id: str = Depends(get_current_user_id),
+) -> dict[str, dict]:
+    import copy
+    result = copy.deepcopy(CATEGORIES)
+    if profile_id is not None:
+        conn = get_connection()
+        rows = conn.execute(
+            "SELECT category, subcategory, emoji FROM custom_subcategories WHERE clerk_user_id = ? AND profile_id = ?",
+            (user_id, profile_id),
+        ).fetchall()
+        conn.close()
+        for r in rows:
+            cat = r["category"]
+            if cat not in result:
+                result[cat] = {"emoji": r["emoji"], "subcategories": {}}
+            result[cat]["subcategories"][r["subcategory"]] = r["emoji"]
+    return result
+
+
+def _resolve_category(conn, user_id: str, profile_id: Optional[int], subcategory: str) -> str:
+    """Resolve subcategory to its parent category, checking built-in then custom."""
+    if subcategory in SUB_TO_CAT:
+        return SUB_TO_CAT[subcategory]
+    if profile_id is not None:
+        row = conn.execute(
+            "SELECT category FROM custom_subcategories WHERE clerk_user_id = ? AND profile_id = ? AND subcategory = ?",
+            (user_id, profile_id, subcategory),
+        ).fetchone()
+        if row:
+            return row["category"]
+    raise HTTPException(status_code=400, detail="Invalid subcategory")
 
 
 @app.post("/api/expenses", response_model=Expense, status_code=201)
@@ -213,10 +287,8 @@ def create_expense(
     profile_id: Optional[int] = Query(None),
     user_id: str = Depends(get_current_user_id),
 ) -> Expense:
-    if data.subcategory not in ALL_SUBCATEGORIES:
-        raise HTTPException(status_code=400, detail="Invalid subcategory")
-    category = SUB_TO_CAT[data.subcategory]
     conn = get_connection()
+    category = _resolve_category(conn, user_id, profile_id, data.subcategory)
     cursor = conn.execute(
         "INSERT INTO expenses (clerk_user_id, title, amount, category, subcategory, date, profile_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
         (user_id, data.title, data.amount, category, data.subcategory, data.date, profile_id),
@@ -233,10 +305,11 @@ def create_expense(
 
 @app.put("/api/expenses/{expense_id}", response_model=Expense)
 def update_expense(expense_id: int, data: ExpenseCreate, user_id: str = Depends(get_current_user_id)) -> Expense:
-    if data.subcategory not in ALL_SUBCATEGORIES:
-        raise HTTPException(status_code=400, detail="Invalid subcategory")
-    category = SUB_TO_CAT[data.subcategory]
     conn = get_connection()
+    # Look up the expense's profile_id for custom subcategory resolution
+    existing = conn.execute("SELECT profile_id FROM expenses WHERE id = ? AND clerk_user_id = ?", (expense_id, user_id)).fetchone()
+    expense_profile_id = existing["profile_id"] if existing else None
+    category = _resolve_category(conn, user_id, expense_profile_id, data.subcategory)
     result = conn.execute(
         "UPDATE expenses SET title = ?, amount = ?, category = ?, subcategory = ?, date = ? WHERE id = ? AND clerk_user_id = ?",
         (data.title, data.amount, category, data.subcategory, data.date, expense_id, user_id),
@@ -339,6 +412,58 @@ def delete_expense(expense_id: int, user_id: str = Depends(get_current_user_id))
     if result.rowcount == 0:
         conn.close()
         raise HTTPException(status_code=404, detail="Expense not found")
+    conn.close()
+
+
+# --- Custom Subcategory CRUD ---
+
+@app.get("/api/custom-subcategories", response_model=list[CustomSubcategory])
+def list_custom_subcategories(
+    profile_id: int = Query(...),
+    user_id: str = Depends(get_current_user_id),
+) -> list[CustomSubcategory]:
+    conn = get_connection()
+    rows = conn.execute(
+        "SELECT * FROM custom_subcategories WHERE clerk_user_id = ? AND profile_id = ? ORDER BY category, subcategory",
+        (user_id, profile_id),
+    ).fetchall()
+    conn.close()
+    return [CustomSubcategory(**dict(r)) for r in rows]
+
+
+@app.post("/api/custom-subcategories", response_model=CustomSubcategory, status_code=201)
+def create_custom_subcategory(
+    data: CustomSubcategoryCreate,
+    profile_id: int = Query(...),
+    user_id: str = Depends(get_current_user_id),
+) -> CustomSubcategory:
+    if data.subcategory.strip() in ALL_SUBCATEGORIES:
+        raise HTTPException(status_code=409, detail="Subcategory name conflicts with a built-in subcategory")
+    conn = get_connection()
+    try:
+        cursor = conn.execute(
+            "INSERT INTO custom_subcategories (clerk_user_id, profile_id, category, subcategory, emoji) VALUES (?, ?, ?, ?, ?)",
+            (user_id, profile_id, data.category.strip(), data.subcategory.strip(), data.emoji),
+        )
+        conn.commit()
+    except Exception:
+        conn.close()
+        raise HTTPException(status_code=409, detail="Subcategory name already exists for this profile")
+    row = conn.execute("SELECT * FROM custom_subcategories WHERE id = ?", (cursor.lastrowid,)).fetchone()
+    conn.close()
+    return CustomSubcategory(**dict(row))
+
+
+@app.delete("/api/custom-subcategories/{sub_id}", status_code=204)
+def delete_custom_subcategory(sub_id: int, user_id: str = Depends(get_current_user_id)) -> None:
+    conn = get_connection()
+    result = conn.execute(
+        "DELETE FROM custom_subcategories WHERE id = ? AND clerk_user_id = ?", (sub_id, user_id)
+    )
+    conn.commit()
+    if result.rowcount == 0:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Custom subcategory not found")
     conn.close()
 
 
