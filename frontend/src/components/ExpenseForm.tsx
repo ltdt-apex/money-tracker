@@ -1,4 +1,5 @@
 import { useState } from "react";
+import TextareaAutosize from "react-textarea-autosize";
 import type { Categories, Expense, ExpenseCreate, Tag, TagCreate } from "../api";
 import CategoryPicker from "./CategoryPicker";
 import TagPicker from "./TagPicker";
@@ -21,6 +22,7 @@ export default function ExpenseForm({ categories, tags, editing, onSubmit, onDel
   const [amount, setAmount] = useState(editing ? String(editing.amount) : "");
   const [subcategory, setSubcategory] = useState(editing?.subcategory ?? "");
   const [date, setDate] = useState(editing?.date ?? todayISO());
+  const [note, setNote] = useState(editing?.note ?? "");
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>(
     editing?.tags.map((t) => t.id) ?? []
   );
@@ -35,6 +37,7 @@ export default function ExpenseForm({ categories, tags, editing, onSubmit, onDel
       subcategory: subcategory || "Uncategorized",
       date,
       tag_ids: selectedTagIds,
+      note: note.trim(),
     });
   }
 
@@ -79,6 +82,19 @@ export default function ExpenseForm({ categories, tags, editing, onSubmit, onDel
             categories={categories}
             value={subcategory}
             onChange={setSubcategory}
+          />
+        </div>
+      </div>
+      <div className="form-row">
+        <div className="form-field form-field-grow">
+          <label className="form-label">Note</label>
+          <TextareaAutosize
+            className="note-textarea"
+            placeholder="Optional note..."
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            minRows={1}
+            maxRows={4}
           />
         </div>
       </div>

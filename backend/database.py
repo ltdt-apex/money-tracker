@@ -47,6 +47,7 @@ def init_db() -> None:
             category TEXT NOT NULL DEFAULT 'Other',
             subcategory TEXT NOT NULL DEFAULT '❓ Uncategorized',
             date TEXT NOT NULL,
+            note TEXT NOT NULL DEFAULT '',
             created_at TEXT NOT NULL DEFAULT (datetime('now'))
         )
     """)
@@ -82,6 +83,8 @@ def init_db() -> None:
     if "profile_id" not in cols:
         conn.execute("ALTER TABLE expenses ADD COLUMN profile_id INTEGER REFERENCES profiles(id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_expenses_profile ON expenses(profile_id)")
+    if "note" not in cols:
+        conn.execute("ALTER TABLE expenses ADD COLUMN note TEXT NOT NULL DEFAULT ''")
 
     tag_cols = [r[1] for r in conn.execute("PRAGMA table_info(tags)").fetchall()]
     if "clerk_user_id" not in tag_cols:

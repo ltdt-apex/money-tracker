@@ -179,6 +179,7 @@ class ExpenseCreate(BaseModel):
     subcategory: str
     date: str
     tag_ids: list[int] = []
+    note: str = ""
 
 
 class Expense(BaseModel):
@@ -189,5 +190,6 @@ class Expense(BaseModel):
     category: str
     subcategory: str
     date: str
+    note: str = ""
     created_at: str
     tags: list[Tag] = []

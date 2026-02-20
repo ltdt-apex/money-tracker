@@ -853,10 +853,22 @@ body {
   width: 100%;
 }
 
-.expense-form input:focus {
+.expense-form input:focus,
+.note-textarea:focus {
   outline: none;
   border-color: #4f46e5;
   box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.note-textarea {
+  padding: 0.75rem 1rem;
+  border: 1.5px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  width: 100%;
+  resize: none;
+  transition: border-color 0.2s;
 }
 
 .form-actions {
@@ -963,6 +975,15 @@ body {
 .expense-title {
   font-weight: 500;
   font-size: 0.95rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.expense-note {
+  font-size: 0.70rem;
+  color: #6b7280;
+  font-style: italic;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

@@ -293,8 +293,8 @@ def create_expense(
     conn = get_connection()
     category = _resolve_category(conn, user_id, profile_id, data.subcategory)
     cursor = conn.execute(
-        "INSERT INTO expenses (clerk_user_id, title, amount, category, subcategory, date, profile_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (user_id, data.title, data.amount, category, data.subcategory, data.date, profile_id),
+        "INSERT INTO expenses (clerk_user_id, title, amount, category, subcategory, date, note, profile_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        (user_id, data.title, data.amount, category, data.subcategory, data.date, data.note, profile_id),
     )
     _sync_expense_tags(conn, cursor.lastrowid, data.tag_ids)
     conn.commit()
@@ -313,8 +313,8 @@ def update_expense(expense_id: int, data: ExpenseCreate, user_id: str = Depends(
     expense_profile_id = existing["profile_id"] if existing else None
     category = _resolve_category(conn, user_id, expense_profile_id, data.subcategory)
     result = conn.execute(
-        "UPDATE expenses SET title = ?, amount = ?, category = ?, subcategory = ?, date = ? WHERE id = ? AND clerk_user_id = ?",
-        (data.title, data.amount, category, data.subcategory, data.date, expense_id, user_id),
+        "UPDATE expenses SET title = ?, amount = ?, category = ?, subcategory = ?, date = ?, note = ? WHERE id = ? AND clerk_user_id = ?",
+        (data.title, data.amount, category, data.subcategory, data.date, data.note, expense_id, user_id),
     )
     if result.rowcount == 0:
             raise HTTPException(status_code=404, detail="Expense not found")

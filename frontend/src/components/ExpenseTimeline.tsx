@@ -45,6 +45,7 @@ export default function ExpenseTimeline({ expenses, emojiMap, onEdit }: Props) {
               <div key={exp.id} className="timeline-row">
                 <div className="expense-details">
                   <span className="expense-title">{exp.title}</span>
+                  {exp.note && <span className="expense-note">{exp.note}</span>}
                   <span className="expense-category">
                     {emojiMap[exp.subcategory] ?? ""} {exp.subcategory}
                     {exp.tags.length > 0 && (

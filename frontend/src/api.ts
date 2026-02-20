@@ -47,6 +47,7 @@ export interface Expense {
   category: string;
   subcategory: string;
   date: string;
+  note: string;
   created_at: string;
   tags: Tag[];
 }
@@ -57,6 +58,7 @@ export interface ExpenseCreate {
   subcategory: string;
   date: string;
   tag_ids: number[];
+  note: string;
 }
 
 export interface Profile {
