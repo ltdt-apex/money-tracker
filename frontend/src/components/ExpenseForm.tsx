@@ -30,7 +30,7 @@ export default function ExpenseForm({ categories, tags, editing, onSubmit, onDel
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const parsed = parseFloat(amount);
-    if (!title.trim() || isNaN(parsed) || parsed <= 0) return;
+    if (!title.trim() || isNaN(parsed) || parsed < 0) return;
     onSubmit({
       title: title.trim(),
       amount: parsed,
