@@ -1,8 +1,9 @@
+import os
 import sqlite3
 import threading
 from pathlib import Path
 
-DB_PATH = Path(__file__).parent / "expenses.db"
+DB_PATH = Path(os.environ.get("DB_PATH", Path(__file__).parent / "expenses.db"))
 
 _connection: sqlite3.Connection | None = None
 _lock = threading.Lock()
