@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import TextareaAutosize from "react-textarea-autosize";
+import { Calculator as CalcIcon } from "lucide-react";
 import type { Categories, Expense, ExpenseCreate, Tag, TagCreate } from "../api";
 import CategoryPicker from "./CategoryPicker";
 import TagPicker from "./TagPicker";
+import Calculator from "./Calculator";
 
 interface Props {
   categories: Categories;
@@ -26,6 +28,19 @@ export default function ExpenseForm({ categories, tags, editing, onSubmit, onDel
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>(
     editing?.tags.map((t) => t.id) ?? []
   );
+  const [showCalc, setShowCalc] = useState(false);
+  const calcRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showCalc) return;
+    function handleClick(e: MouseEvent) {
+      if (calcRef.current && !calcRef.current.contains(e.target as Node)) {
+        setShowCalc(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showCalc]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -56,14 +71,36 @@ export default function ExpenseForm({ categories, tags, editing, onSubmit, onDel
         </div>
         <div className="form-field form-field-amount">
           <label className="form-label">Amount</label>
-          <input
-            type="text"
-            inputMode="decimal"
-            placeholder="0.00"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            required
-          />
+          <div className="amount-field-wrapper" ref={calcRef}>
+            <div className="amount-input-row">
+              <input
+                type="text"
+                inputMode="decimal"
+                placeholder="0.00"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                required
+              />
+              <button
+                type="button"
+                className="calculator-toggle"
+                onClick={() => setShowCalc((v) => !v)}
+                title="Calculator"
+              >
+                <CalcIcon size={18} />
+              </button>
+            </div>
+            {showCalc && (
+              <Calculator
+                value={parseFloat(amount) || 0}
+                onApply={(val) => {
+                  setAmount(String(val));
+                  setShowCalc(false);
+                }}
+                onClose={() => setShowCalc(false)}
+              />
+            )}
+          </div>
         </div>
       </div>
       <div className="form-row">
