@@ -73,7 +73,7 @@ export default function SpendCalendar({ expenses, categories, onDateClick }: Pro
     const containerRect = container.getBoundingClientRect();
     const tip = tooltipRef.current;
 
-    tip.style.top = `${cellRect.bottom - containerRect.top + 6}px`;
+    tip.style.top = `${cellRect.top - containerRect.top - tip.offsetHeight - 6}px`;
     tip.style.left = `${cellRect.left - containerRect.left + cellRect.width / 2}px`;
   }, [hoveredDay]);
 
